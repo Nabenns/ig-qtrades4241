@@ -3,17 +3,28 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
+
+from ig_qt.app import run_check
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="ig_qt")
-    parser.add_argument("--check", action="store_true", help="Validate env/DB and exit")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.yaml"),
+        help="Path to config.yaml",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Validate env + initialize DB and exit",
+    )
     args = parser.parse_args()
     if args.check:
-        # Wired up in Task 1.8
-        print("check: not implemented yet")
-        return 0
-    print("ig_qt: not implemented yet")
+        return run_check(config_path=args.config)
+    print("ig_qt: scheduler entry point not implemented yet (M5)")
     return 0
 
 

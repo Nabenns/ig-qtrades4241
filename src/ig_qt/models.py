@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -10,7 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -80,7 +80,7 @@ class PostDraft(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    posts: Mapped[list["Post"]] = relationship(back_populates="draft")
+    posts: Mapped[list[Post]] = relationship(back_populates="draft")
 
 
 class Post(Base):

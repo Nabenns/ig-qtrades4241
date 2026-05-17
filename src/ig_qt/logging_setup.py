@@ -26,7 +26,7 @@ def _redact_message(msg: str) -> str:
     return msg
 
 
-def _patcher(record: "Record") -> None:
+def _patcher(record: Record) -> None:
     record["message"] = _redact_message(record["message"])
 
 
