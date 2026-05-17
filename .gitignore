@@ -1,14 +1,29 @@
-﻿data/
-*.session
-*.session.json
-.env
-.env.*
-!.env.example
+﻿# Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.session
+*.session.json
+
+# Data (runtime)
+data/*
+!data/.gitkeep
+
+# Logs
 *.log
+
+# OS
 .DS_Store
+Thumbs.db
