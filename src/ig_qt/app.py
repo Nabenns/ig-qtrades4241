@@ -92,6 +92,7 @@ async def run_analyze_once(*, config_path: Path) -> int:
 
 async def run_compose_once(*, config_path: Path) -> int:
     """One-shot composer run: process pending drafts into ready posts."""
+    from ig_qt.composer.image_critic import build_image_critic
     from ig_qt.composer.image_gen import build_image_gen
     from ig_qt.composer.runner import ComposerRunner
     from ig_qt.models import PostDraft
@@ -123,6 +124,11 @@ async def run_compose_once(*, config_path: Path) -> int:
             else None
         ),
     )
+    image_critic = build_image_critic(
+        enabled=cfg.image_gen.enabled,
+        base_url=cfg.llm.base_url,
+        api_key=cfg.llm.api_key.get_secret_value(),
+    )
     runner = ComposerRunner(
         engine=engine,
         data_dir=cfg.paths.data_dir,
@@ -130,6 +136,7 @@ async def run_compose_once(*, config_path: Path) -> int:
         handle=cfg.brand.handle,
         scheduled_for_factory=_sched_for,
         image_gen=image_gen,
+        image_critic=image_critic,
     )
     summary = await runner.run_once()
     logger.info("compose_done processed={} failed={}", summary.processed, summary.failed)
@@ -188,6 +195,7 @@ async def run_long_running(*, config_path: Path) -> int:
     from ig_qt import __version__
     from ig_qt.analyst.runner import AnalystRunner
     from ig_qt.collector.pipeline import build_pipeline_from_config
+    from ig_qt.composer.image_critic import build_image_critic
     from ig_qt.composer.image_gen import build_image_gen
     from ig_qt.composer.runner import ComposerRunner
     from ig_qt.health import build_health_app
@@ -245,6 +253,11 @@ async def run_long_running(*, config_path: Path) -> int:
             else None
         ),
     )
+    image_critic = build_image_critic(
+        enabled=cfg.image_gen.enabled,
+        base_url=cfg.llm.base_url,
+        api_key=cfg.llm.api_key.get_secret_value(),
+    )
     composer = ComposerRunner(
         engine=engine,
         data_dir=cfg.paths.data_dir,
@@ -252,6 +265,7 @@ async def run_long_running(*, config_path: Path) -> int:
         handle=cfg.brand.handle,
         scheduled_for_factory=_sched_for,
         image_gen=image_gen,
+        image_critic=image_critic,
     )
     ig_client = IGClient(
         session_path=cfg.paths.data_dir / "ig_session.json",

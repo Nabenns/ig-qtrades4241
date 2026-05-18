@@ -14,6 +14,7 @@ from ig_qt.analyst.schemas import VisualSpec
 from ig_qt.composer.caption import finalize_caption, pick_opener
 from ig_qt.composer.chart_renderer import render_chart_png
 from ig_qt.composer.html_renderer import build_headline_html, render_card
+from ig_qt.composer.image_critic import ImageCritic
 from ig_qt.composer.image_gen import ImageGenerator, ImageGenError
 from ig_qt.composer.pillow_fallback import render_text_card
 from ig_qt.composer.postprocess import finalize_feed_image, finalize_story_image
@@ -57,6 +58,9 @@ class ComposerRunner:
         hashtags: tuple[str, ...] = _DEFAULT_HASHTAGS,
         cta: str = _DEFAULT_CTA,
         image_gen: ImageGenerator | None = None,
+        image_critic: ImageCritic | None = None,
+        critic_threshold: float = 0.7,
+        critic_max_retries: int = 2,
     ) -> None:
         self._engine = engine
         self._data_dir = data_dir
@@ -66,6 +70,9 @@ class ComposerRunner:
         self._hashtags = hashtags
         self._cta = cta
         self._image_gen = image_gen
+        self._image_critic = image_critic
+        self._critic_threshold = critic_threshold
+        self._critic_max_retries = critic_max_retries
 
     def _latest_prices(self, session: Session) -> dict[str, list[dict[str, Any]]]:
         rows = list(session.execute(select(PriceCache)).scalars())
@@ -88,19 +95,84 @@ class ComposerRunner:
     async def _maybe_generate_hero(
         self, spec: VisualSpec, out_dir: Path
     ) -> Path | None:
-        """Generate AI hero image if image_gen is enabled and prompt is provided."""
+        """Generate AI hero image with adaptive critic loop.
+
+        Flow:
+        1. Generate image with original prompt.
+        2. If critic enabled, score it. Accept if score >= threshold.
+        3. If below threshold, ask critic for tweak hint, regenerate. Up to N retries.
+        4. Return path of best attempt (or None on hard failure).
+        """
         if self._image_gen is None or not spec.hero_image_prompt:
             return None
-        hero_path = out_dir / "hero.png"
-        if hero_path.exists():
-            return hero_path
-        try:
-            return await self._image_gen.generate(
-                prompt=spec.hero_image_prompt, out_path=hero_path
+
+        original_prompt = spec.hero_image_prompt
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        best_path: Path | None = None
+        best_score = -1.0
+        prompt = original_prompt
+
+        attempts = 1 + (self._critic_max_retries if self._image_critic else 0)
+
+        for attempt in range(1, attempts + 1):
+            attempt_path = out_dir / f"hero_attempt_{attempt}.png"
+            try:
+                await self._image_gen.generate(prompt=prompt, out_path=attempt_path)
+            except ImageGenError as exc:
+                logger.warning("hero_image_failed attempt={} err={}", attempt, exc)
+                continue
+
+            # No critic — accept first success
+            if self._image_critic is None:
+                final_path = out_dir / "hero.png"
+                attempt_path.replace(final_path)
+                return final_path
+
+            verdict = await self._image_critic.score(
+                image_path=attempt_path, original_prompt=original_prompt
             )
-        except ImageGenError as exc:
-            logger.warning("hero_image_failed err={}", exc)
-            return None
+            score = verdict.score if verdict else 0.5  # neutral when critic unreachable
+            logger.info(
+                "hero_attempt {}/{}: score={} issues={}",
+                attempt,
+                attempts,
+                score,
+                verdict.issues if verdict else "critic_unavailable",
+            )
+
+            if score > best_score:
+                best_score = score
+                best_path = attempt_path
+
+            if score >= self._critic_threshold or attempt == attempts:
+                break
+
+            # Tweak prompt for next attempt
+            if verdict and verdict.tweak_hint and verdict.tweak_hint != "accept as-is":
+                prompt = (
+                    f"{original_prompt}. Improvement: {verdict.tweak_hint}"
+                )[:380]
+            else:
+                # Generic style tweak rotation
+                tweaks = [
+                    "more cinematic dramatic lighting, darker mood",
+                    "tighter composition with strong focal point",
+                    "professional editorial finance photography style",
+                ]
+                prompt = f"{original_prompt}. Style: {tweaks[(attempt - 1) % 3]}"[:380]
+
+        # Promote best attempt to canonical hero.png
+        if best_path is not None and best_path.exists():
+            final_path = out_dir / "hero.png"
+            best_path.replace(final_path)
+            logger.info(
+                "hero_image_finalized score={} attempts_made={}",
+                best_score,
+                attempt,
+            )
+            return final_path
+        return None
 
     async def _render_visual(
         self,
