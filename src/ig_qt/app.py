@@ -123,10 +123,14 @@ async def run_compose_once(*, config_path: Path) -> int:
 
 
 async def run_long_running(*, config_path: Path) -> int:
-    """Long-running orchestrator: APScheduler + handlers wired together."""
+    """Long-running orchestrator: APScheduler + /health endpoint together."""
+    import uvicorn
+
+    from ig_qt import __version__
     from ig_qt.analyst.runner import AnalystRunner
     from ig_qt.collector.pipeline import build_pipeline_from_config
     from ig_qt.composer.runner import ComposerRunner
+    from ig_qt.health import build_health_app
     from ig_qt.models import PostDraft
     from ig_qt.publisher.ig_client import IGClient
     from ig_qt.publisher.rate_limiter import offset_hours_for_timezone
@@ -249,8 +253,22 @@ async def run_long_running(*, config_path: Path) -> int:
     scheduler.start()
     logger.info("scheduler_started")
 
+    health_app = build_health_app(
+        engine=engine,
+        pause_file=cfg.paths.data_dir / "PAUSE",
+        version=__version__,
+    )
+    server_config = uvicorn.Config(
+        app=health_app,
+        host="0.0.0.0",  # noqa: S104 (bind localhost-only via Docker port mapping)
+        port=8080,
+        log_level="warning",
+        access_log=False,
+    )
+    server = uvicorn.Server(server_config)
+
     try:
-        await asyncio.Event().wait()
+        await server.serve()
     finally:
         scheduler.shutdown(wait=True)
     return 0
