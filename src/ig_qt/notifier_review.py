@@ -10,6 +10,7 @@ Architecture:
 """
 from __future__ import annotations
 
+import html as html_lib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -56,6 +57,13 @@ class TelegramReviewer:
                 )
             else:
                 resp = await client.post(f"{self._api_base}/{method}", json=kwargs)
+            if resp.status_code >= 400:
+                logger.error(
+                    "telegram_api_error method={} status={} body={}",
+                    method,
+                    resp.status_code,
+                    resp.text[:600],
+                )
             resp.raise_for_status()
             payload: dict[str, Any] = resp.json()
             return payload
@@ -75,16 +83,19 @@ class TelegramReviewer:
             logger.warning("review_image_missing path={}", image_path)
             return None
 
+        # Use HTML parse mode (more permissive than Markdown w/r/t special chars)
         header = (
-            f"📝 *POST REVIEW #{post_id}*\n"
-            f"_{topic_tag}_ · {post_type} · conf {confidence:.2f}\n\n"
+            f"📝 <b>POST REVIEW #{post_id}</b>\n"
+            f"<i>{html_lib.escape(topic_tag)}</i> · {html_lib.escape(post_type)} · "
+            f"conf {confidence:.2f}\n\n"
         )
         # Trim caption to fit telegram photo caption limit
         budget = _CAPTION_MAX - len(header) - 12  # safety margin
-        body = ig_caption[:budget]
+        body_text = ig_caption[:budget]
         if len(ig_caption) > budget:
-            body = body.rstrip() + "..."
-        caption = header + body
+            body_text = body_text.rstrip() + "..."
+        # Escape HTML special characters in user-generated text
+        caption = header + html_lib.escape(body_text)
 
         keyboard = {
             "inline_keyboard": [
@@ -106,7 +117,7 @@ class TelegramReviewer:
                     data={
                         "chat_id": self.chat_id,
                         "caption": caption,
-                        "parse_mode": "Markdown",
+                        "parse_mode": "HTML",
                         "reply_markup": _json_dumps(keyboard),
                     },
                 )
@@ -137,7 +148,7 @@ class TelegramReviewer:
                 chat_id=chat_id,
                 message_id=message_id,
                 caption=new_caption[: _CAPTION_MAX],
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup={"inline_keyboard": []},  # remove buttons
             )
             return True
@@ -318,16 +329,21 @@ async def _handle_decision(
     if action == "approve":
         new_status = "approved"
         decision_short = "approved"
-        new_caption_suffix = f"\n\n✅ *APPROVED* by @{username}"
+        new_caption_suffix = (
+            f"\n\n✅ <b>APPROVED</b> by @{html_lib.escape(username)}"
+        )
     elif action == "reject":
         new_status = "rejected"
         decision_short = "rejected"
-        new_caption_suffix = f"\n\n❌ *REJECTED* by @{username}"
+        new_caption_suffix = (
+            f"\n\n❌ <b>REJECTED</b> by @{html_lib.escape(username)}"
+        )
     elif action == "regen":
         new_status = "review"  # back to review queue, image_gen happens elsewhere
         decision_short = "regenerate queued"
         new_caption_suffix = (
-            f"\n\n🔄 *REGEN REQUESTED* by @{username} (will regenerate)"
+            f"\n\n🔄 <b>REGEN REQUESTED</b> by @{html_lib.escape(username)}"
+            " (will regenerate)"
         )
     else:
         return "unknown action"
@@ -361,9 +377,10 @@ async def _handle_decision(
             topic_tag = draft.topic_tag if draft else "unknown"
             cap = post.caption_final[:600]
         new_caption = (
-            f"📝 *POST REVIEW #{post_id}*\n"
-            f"_{topic_tag}_ · {post.post_type} · conf {confidence:.2f}"
-            f"{new_caption_suffix}\n\n{cap}"
+            f"📝 <b>POST REVIEW #{post_id}</b>\n"
+            f"<i>{html_lib.escape(topic_tag)}</i> · {html_lib.escape(post.post_type)} · "
+            f"conf {confidence:.2f}"
+            f"{new_caption_suffix}\n\n{html_lib.escape(cap)}"
         )
         await reviewer.edit_caption(
             chat_id=chat_id, message_id=message_id, new_caption=new_caption
