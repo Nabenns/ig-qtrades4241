@@ -17,6 +17,11 @@ from typing import Any
 
 from loguru import logger
 
+# Auto-load .env so this script can be run standalone
+from ig_qt.config import _load_dotenv_if_present
+
+_load_dotenv_if_present()
+
 
 def main() -> int:
     try:
