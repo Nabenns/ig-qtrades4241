@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import yfinance as yf
@@ -49,7 +49,7 @@ class YFinanceSource:
             return NormalizedPrice(
                 symbol=symbol,
                 timeframe=timeframe,
-                fetched_at=datetime.now(timezone.utc),
+                fetched_at=datetime.now(UTC),
                 ohlc=[],
             )
         df = df.tail(limit)
@@ -57,7 +57,7 @@ class YFinanceSource:
         for ts, row in df.iterrows():
             dt = ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             ohlc.append(
                 {
                     "t": dt.isoformat(),
@@ -70,6 +70,6 @@ class YFinanceSource:
         return NormalizedPrice(
             symbol=symbol,
             timeframe=timeframe,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
             ohlc=ohlc,
         )

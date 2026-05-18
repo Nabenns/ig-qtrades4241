@@ -1,7 +1,7 @@
 """Tests for dedup helpers."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -19,7 +19,7 @@ def test_insert_news_dedup_skips_duplicates(tmp_path: Path) -> None:
     n1 = NormalizedNews(
         source="newsapi",
         external_id="1",
-        published_at=datetime(2026, 5, 17, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 17, tzinfo=UTC),
         title="Fed Holds Rates",
         summary=None,
         url="https://x",
@@ -29,7 +29,7 @@ def test_insert_news_dedup_skips_duplicates(tmp_path: Path) -> None:
     n2 = NormalizedNews(
         source="gnews",
         external_id="2",
-        published_at=datetime(2026, 5, 17, 12, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 17, 12, tzinfo=UTC),
         title="fed holds rates",
         summary=None,
         url="https://y",
@@ -52,7 +52,7 @@ def test_insert_events_dedup(tmp_path: Path) -> None:
 
     e1 = NormalizedEvent(
         source="ff",
-        event_time=datetime(2026, 5, 17, 12, 30, tzinfo=timezone.utc),
+        event_time=datetime(2026, 5, 17, 12, 30, tzinfo=UTC),
         country="US",
         currency="USD",
         name="CPI m/m",

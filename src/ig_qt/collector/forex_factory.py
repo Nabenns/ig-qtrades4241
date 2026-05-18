@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from bs4 import BeautifulSoup, Tag
 from dateutil import parser as dtparser
@@ -24,10 +24,9 @@ def _impact_from_classes(td: Tag) -> str:
     raw_classes = span.get("class")
     if raw_classes is None:
         return "low"
-    if isinstance(raw_classes, str):
-        classes = raw_classes
-    else:
-        classes = " ".join(str(c) for c in raw_classes)
+    classes = (
+        raw_classes if isinstance(raw_classes, str) else " ".join(str(c) for c in raw_classes)
+    )
     m = _IMPACT_CLASS.search(classes)
     if not m:
         return "low"
@@ -77,11 +76,11 @@ def parse_forex_factory_html(html: str, *, fallback_date: datetime) -> list[Norm
         if time_text and _TIME_RE.match(time_text):
             try:
                 event_dt_naive = dtparser.parse(f"{current_date.isoformat()} {time_text}")
-                event_dt = event_dt_naive.replace(tzinfo=timezone.utc)
+                event_dt = event_dt_naive.replace(tzinfo=UTC)
             except (ValueError, TypeError):
-                event_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=timezone.utc)
+                event_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=UTC)
         else:
-            event_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=timezone.utc)
+            event_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=UTC)
 
         events.append(
             NormalizedEvent(
@@ -115,6 +114,6 @@ class ForexFactorySource:
         except Exception as exc:
             logger.warning("forex_factory_fetch_failed error={}", exc)
             return []
-        events = parse_forex_factory_html(html, fallback_date=datetime.now(timezone.utc))
+        events = parse_forex_factory_html(html, fallback_date=datetime.now(UTC))
         logger.info("forex_factory_fetched count={}", len(events))
         return events

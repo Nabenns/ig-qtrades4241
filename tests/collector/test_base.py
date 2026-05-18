@@ -1,7 +1,7 @@
 """Tests for collector base types."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ig_qt.collector.base import NormalizedEvent, NormalizedNews
 
@@ -10,7 +10,7 @@ def test_normalized_news_dedup_key_stable() -> None:
     n1 = NormalizedNews(
         source="newsapi",
         external_id="x",
-        published_at=datetime(2026, 5, 17, 12, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 17, 12, tzinfo=UTC),
         title="Fed Holds Rates",
         summary=None,
         url="https://x",
@@ -20,7 +20,7 @@ def test_normalized_news_dedup_key_stable() -> None:
     n2 = NormalizedNews(
         source="gnews",
         external_id="y",
-        published_at=datetime(2026, 5, 17, 18, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 17, 18, tzinfo=UTC),
         title="  fed holds rates ",
         summary="diff",
         url="https://y",
@@ -33,7 +33,7 @@ def test_normalized_news_dedup_key_stable() -> None:
 def test_normalized_event_dedup_key_includes_currency_and_time() -> None:
     e1 = NormalizedEvent(
         source="forex_factory",
-        event_time=datetime(2026, 5, 17, 12, 30, tzinfo=timezone.utc),
+        event_time=datetime(2026, 5, 17, 12, 30, tzinfo=UTC),
         country="US",
         currency="USD",
         name="CPI m/m",
@@ -46,7 +46,7 @@ def test_normalized_event_dedup_key_includes_currency_and_time() -> None:
     # But same event with same currency+name+time produces same key
     e2 = NormalizedEvent(
         source="other",
-        event_time=datetime(2026, 5, 17, 12, 30, tzinfo=timezone.utc),
+        event_time=datetime(2026, 5, 17, 12, 30, tzinfo=UTC),
         country="US",
         currency="USD",
         name="CPI m/m",

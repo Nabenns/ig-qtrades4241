@@ -1,7 +1,7 @@
 """Twelve Data prices adapter (free tier)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -52,7 +52,7 @@ class TwelveDataSource:
             try:
                 dt = dtparser.parse(v["datetime"])
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 ohlc.append(
                     {
                         "t": dt.isoformat(),
@@ -68,6 +68,6 @@ class TwelveDataSource:
         return NormalizedPrice(
             symbol=symbol,
             timeframe=timeframe,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
             ohlc=ohlc,
         )

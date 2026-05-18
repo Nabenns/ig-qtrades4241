@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -72,7 +72,7 @@ class NewsAPISource:
                 try:
                     parsed = dtparser.isoparse(published)
                     published_dt = (
-                        parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                        parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
                     )
                 except (ValueError, TypeError):
                     published_dt = None

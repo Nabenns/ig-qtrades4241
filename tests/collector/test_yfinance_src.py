@@ -1,7 +1,7 @@
 """Tests for yfinance fallback price adapter."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -21,8 +21,8 @@ async def test_fetch_ohlc_translates_yf_symbol(monkeypatch: pytest.MonkeyPatch) 
         },
         index=pd.DatetimeIndex(
             [
-                datetime(2026, 5, 17, 11, tzinfo=timezone.utc),
-                datetime(2026, 5, 17, 12, tzinfo=timezone.utc),
+                datetime(2026, 5, 17, 11, tzinfo=UTC),
+                datetime(2026, 5, 17, 12, tzinfo=UTC),
             ],
             name="Datetime",
         ),

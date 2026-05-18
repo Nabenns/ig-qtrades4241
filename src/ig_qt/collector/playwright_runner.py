@@ -21,8 +21,8 @@ _UA_POOL: tuple[str, ...] = (
 
 
 def pick_user_agent(*, seed: int | None = None) -> str:
-    rng = random.Random(seed) if seed is not None else random
-    return rng.choice(_UA_POOL)
+    rng = random.Random(seed) if seed is not None else random  # noqa: S311
+    return rng.choice(_UA_POOL)  # noqa: S311
 
 
 @asynccontextmanager

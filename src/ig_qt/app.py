@@ -37,3 +37,24 @@ def run_check(*, config_path: Path) -> int:
     )
     logger.info("notifier_ready type={}", type(notifier).__name__)
     return 0
+
+
+async def run_collect_once(*, config_path: Path) -> int:
+    """One-shot collector run for manual invocation / testing."""
+    from ig_qt.collector.pipeline import build_pipeline_from_config
+
+    cfg = load_config(config_path)
+    log_dir = cfg.paths.data_dir / "logs"
+    configure_logging(log_dir=log_dir, level="INFO", json_logs=True)
+    db_path = cfg.paths.data_dir / "ig_qt.db"
+    engine = build_engine(db_path)
+    init_schema(engine)
+    pipeline = build_pipeline_from_config(engine, cfg)
+    result = await pipeline.run_once()
+    logger.info(
+        "collect_done news={} events={} failed={}",
+        result.news_inserted,
+        result.events_inserted,
+        result.failed_sources,
+    )
+    return 0 if not result.failed_sources else 1
