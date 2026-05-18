@@ -17,7 +17,7 @@ def _make_test_image(path: Path, size: tuple[int, int]) -> None:
     img.save(path, "PNG")
 
 
-def test_finalize_feed_resizes_to_1080x1080(tmp_path: Path) -> None:
+def test_finalize_feed_resizes_to_1080x1350(tmp_path: Path) -> None:
     src = tmp_path / "src.png"
     _make_test_image(src, (2000, 2000))
     logo = tmp_path / "logo.png"
@@ -25,7 +25,7 @@ def test_finalize_feed_resizes_to_1080x1080(tmp_path: Path) -> None:
     dst = tmp_path / "out.jpg"
     out = finalize_feed_image(src=src, dst=dst, logo_path=logo, handle="@x")
     img = Image.open(out)
-    assert img.size == (1080, 1080)
+    assert img.size == (1080, 1350)
     assert img.mode == "RGB"
     assert dst.stat().st_size < 8 * 1024 * 1024
 

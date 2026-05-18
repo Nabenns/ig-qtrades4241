@@ -1,40 +1,74 @@
-<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<style>{{ base_css }}</style>
-</head>
-<body class="{{ orientation }}">
-<div class="brand-bar"></div>
-<main>
-  <header class="header">
-    <div class="logo-wrap">
-      <img src="file:///{{ logo_url }}" alt="qtradesedu" />
-      <span class="brand-name">qtrades<em>edu</em></span>
-    </div>
-    <span class="meta">Daily Recap</span>
-  </header>
+{% extends "_base.html" %}
+{% block body %}
+<body class="w-[1080px] h-[1920px] relative overflow-hidden bg-mesh text-[#eaf6f3]">
+  <div class="accent-strip"></div>
 
-  <span class="eyebrow">Market Recap</span>
-  <h1 class="headline">{{ headline | safe }}</h1>
-  {% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+  <div class="relative z-10 h-full w-full flex flex-col px-16 py-20">
 
-  <div class="recap-grid">
-  {% for r in recaps %}
-    <div class="recap-card">
-      <div class="symbol">{{ r.symbol }}</div>
-      <div class="change {{ 'up' if r.change_pct >= 0 else 'down' }}">
-        {{ "%+.2f"|format(r.change_pct) }}%
+    <header class="flex items-start justify-between mb-10">
+      <div class="flex items-center gap-3">
+        <img src="file:///{{ logo_url }}" alt="qtradesedu" class="w-14 h-14 object-contain" />
+        <div class="flex flex-col leading-none">
+          <span class="text-2xl font-bold tracking-tight">qtrades</span>
+          <span class="text-2xl font-bold tracking-tight font-serif italic text-teal-300 -mt-0.5">edu</span>
+        </div>
       </div>
-      <div class="close">{{ r.close }}</div>
-    </div>
-  {% endfor %}
-  </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10">
+        <div class="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
+        <span class="text-[10px] font-mono text-white/70 tracking-[0.18em] uppercase font-semibold">Closed</span>
+      </div>
+    </header>
 
-  <footer class="footer">
-    <span class="handle">{{ handle }}</span>
-    <span class="tagline">Major pairs vs previous close</span>
-  </footer>
-</main>
+    <div class="flex items-center gap-3 mb-6">
+      <span class="block w-8 h-px bg-teal-400/60"></span>
+      <span class="text-[11px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold">Market Recap</span>
+    </div>
+
+    <h1 class="font-bold leading-[0.95] tracking-tight mb-6 text-[110px]">
+      {{ headline | safe }}
+    </h1>
+
+    {% if subheadline %}
+    <p class="text-[22px] text-white/55 leading-snug font-light max-w-[920px] mb-8">{{ subheadline }}</p>
+    {% endif %}
+
+    <!-- 2-col grid of recap cards -->
+    <div class="grid grid-cols-2 gap-5 mt-2">
+    {% for r in recaps %}
+      {% set is_up = r.change_pct >= 0 %}
+      <div class="card-elevated rounded-2xl p-7 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-px {{ 'bg-emerald-400' if is_up else 'bg-rose-400' }}"></div>
+
+        <div class="flex items-start justify-between mb-2">
+          <span class="text-[28px] font-bold tracking-tight text-white">{{ r.symbol }}</span>
+          <span class="text-2xl {{ 'text-emerald-400' if is_up else 'text-rose-400' }}">
+            {{ '↑' if is_up else '↓' }}
+          </span>
+        </div>
+
+        <div class="font-mono font-bold text-[64px] tracking-[-0.04em] {{ 'text-emerald-400' if is_up else 'text-rose-400' }} leading-none mb-2">
+          {{ "%+.2f"|format(r.change_pct) }}<span class="text-3xl">%</span>
+        </div>
+
+        <div class="font-mono text-[15px] text-white/50 pt-3 border-t border-white/5">
+          close <span class="text-white/85 font-semibold">{{ r.close }}</span>
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+
+    <footer class="mt-auto pt-6 flex items-end justify-between border-t border-white/5">
+      <div class="flex flex-col gap-0.5">
+        <span class="font-mono text-[15px] font-semibold tracking-wider text-white/85">{{ handle }}</span>
+        <span class="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase">save · share · follow</span>
+      </div>
+      <div class="text-right">
+        <span class="font-serif italic text-[14px] text-white/40 leading-tight block">
+          Major pairs vs<br/>previous close
+        </span>
+      </div>
+    </footer>
+
+  </div>
 </body>
-</html>
+{% endblock %}

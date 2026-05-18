@@ -89,7 +89,7 @@ class ComposerRunner:
         out_dir: Path,
         orientation: str,
     ) -> Path:
-        viewport = (1080, 1080) if orientation == "feed" else (1080, 1920)
+        viewport = (1080, 1350) if orientation == "feed" else (1080, 1920)
         raw_path = out_dir / "raw.png"
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -109,18 +109,29 @@ class ComposerRunner:
             except Exception as exc:
                 logger.warning("chart_render_failed fallback_to_headline error={}", exc)
 
-        if spec.type in ("chart", "headline"):
+        # Build rich context covering all VisualSpec fields for new templates
+        context: dict[str, Any] = {
+            "headline": spec.headline,
+            "subheadline": spec.subheadline,
+            "summary": " · ".join(spec.annotations[:3]) or "",
+            "label": "Forex News",
+            "handle": self._handle,
+            "orientation": orientation,
+            "eyebrow": "Forex News" if orientation == "feed" else "Macro Watch",
+            "eyebrow_meta": "Live" if orientation == "feed" else "Today",
+            "big_number": spec.big_number,
+            "big_number_label": spec.big_number_label,
+            "big_number_caption": spec.big_number_caption,
+            "stats": [s.model_dump() for s in spec.stats],
+            "quote": spec.quote.model_dump() if spec.quote else None,
+            "insight": spec.insight.model_dump() if spec.insight else None,
+        }
+
+        if spec.type in ("chart", "headline", "big_number", "panel"):
             try:
                 await render_card(
                     template="headline_card.html",
-                    context={
-                        "headline": spec.headline,
-                        "subheadline": spec.subheadline,
-                        "summary": " · ".join(spec.annotations[:3]) or "",
-                        "label": "Forex News",
-                        "handle": self._handle,
-                        "orientation": orientation,
-                    },
+                    context=context,
                     out_path=raw_path,
                     viewport=viewport,
                 )

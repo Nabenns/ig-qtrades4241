@@ -20,15 +20,51 @@ class RankerOutput(BaseModel):
     ranked: list[RankedItem] = Field(min_length=1, max_length=10)
 
 
+class StatItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    label: str = Field(min_length=1, max_length=24)
+    value: str = Field(min_length=1, max_length=24)
+
+
+class QuoteBlock(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    text: str = Field(min_length=10, max_length=240)
+    attribution: str = Field(min_length=1, max_length=64)
+    role: str | None = Field(default=None, max_length=80)
+
+
+class InsightBlock(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    label: str = Field(min_length=2, max_length=40)
+    body: str = Field(min_length=10, max_length=320)
+
+
 class VisualSpec(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    type: Literal["chart", "headline", "event", "recap"]
+    type: Literal["chart", "headline", "event", "recap", "big_number", "panel"]
     symbol: str | None = None
     timeframe: Literal["15m", "1h", "4H", "1D"] | None = None
     annotations: list[str] = Field(default_factory=list)
-    headline: str = Field(min_length=1, max_length=120)
+    headline: str = Field(min_length=1, max_length=160)
     subheadline: str | None = None
+
+    # Hero "big number" for feed posts (e.g. price level, rate %, change %)
+    big_number: str | None = Field(default=None, max_length=24)
+    big_number_label: str | None = Field(default=None, max_length=40)
+    big_number_caption: str | None = Field(default=None, max_length=80)
+
+    # Mini stats strip (3-4 items max)
+    stats: list[StatItem] = Field(default_factory=list, max_length=4)
+
+    # Optional quote attribution
+    quote: QuoteBlock | None = None
+
+    # Optional insight highlight ("WHY THIS MATTERS" / "WHAT TO WATCH")
+    insight: InsightBlock | None = None
 
 
 class AngleDraft(BaseModel):

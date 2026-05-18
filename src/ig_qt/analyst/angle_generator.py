@@ -70,5 +70,14 @@ async def generate_angle(
             return draft
         except (ValidationError, ValueError) as exc:
             last_error = exc
-            logger.warning("angle_retry attempt={} error={}", attempt, exc)
+            preview = (
+                resp.content[:400] if "resp" in locals() and resp.content else ""
+            )
+            logger.warning(
+                "angle_retry attempt={} error_type={} error={!r} preview={}",
+                attempt,
+                type(exc).__name__,
+                str(exc)[:600],
+                preview,
+            )
     raise RuntimeError(f"angle gen failed after {max_attempts} attempts: {last_error}")

@@ -69,7 +69,7 @@ def finalize_feed_image(
     *, src: Path, dst: Path, logo_path: Path, handle: str
 ) -> Path:
     img = _open_rgb(src)
-    img = _resize_cover(img, (1080, 1080))
+    img = _resize_cover(img, (1080, 1350))
     img = _paste_logo(img, logo_path, handle=handle)
     _save_jpeg_capped(img, dst)
     return dst

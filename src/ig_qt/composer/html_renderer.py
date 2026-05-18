@@ -10,7 +10,6 @@ from loguru import logger
 from ig_qt.collector.playwright_runner import browser_session
 
 _TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates"
-_BASE_CSS_PATH = _TEMPLATES_DIR / "base.css"
 _LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "logo.png"
 
 
@@ -32,21 +31,22 @@ async def render_card(
 ) -> Path:
     """Render Jinja template, screenshot via headless Chromium, save PNG."""
     env = _build_env()
-    base_css = _BASE_CSS_PATH.read_text(encoding="utf-8")
-    # Convert logo path to forward-slash for file:// URL (Chromium-friendly)
     logo_url = str(_LOGO_PATH.resolve()).replace("\\", "/")
-    ctx = {**context, "base_css": base_css, "logo_url": logo_url}
+    ctx = {**context, "logo_url": logo_url}
     html = env.get_template(template).render(**ctx)
 
     async with browser_session() as browser_ctx:
         page = await browser_ctx.new_page()
         await page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
-        await page.set_content(html, wait_until="networkidle", timeout=30_000)
-        # Ensure web fonts have loaded before screenshot (Fraunces / Plus Jakarta Sans / JetBrains Mono)
+        # Use load_state networkidle + extra wait for Tailwind CDN to apply utility classes
+        await page.set_content(html, wait_until="networkidle", timeout=45_000)
         try:
+            # Wait for fonts (Geist via Google Fonts)
             await page.evaluate("document.fonts.ready")
         except Exception as exc:
             logger.debug("html_render_font_wait_skip err={}", exc)
+        # Extra wait for Tailwind CDN to inject computed styles
+        await page.wait_for_timeout(800)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         await page.screenshot(path=str(out_path), full_page=False, type="png")
     logger.info("html_render_done template={} out={}", template, out_path)

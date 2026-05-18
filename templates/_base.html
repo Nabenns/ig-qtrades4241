@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>{{ headline }}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .font-mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+  .font-serif { font-family: 'Instrument Serif', Georgia, serif; }
+  .bg-mesh {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(94, 234, 212, 0.22) 0%, transparent 45%),
+      radial-gradient(circle at 0% 100%, rgba(234, 246, 243, 0.063) 0%, transparent 50%),
+      #06100E;
+  }
+  .accent-strip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #5eead4 30%, #2dd4bf 70%, transparent 100%);
+    z-index: 50;
+  }
+  .card-elevated {
+    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%), rgba(14,26,23,1);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .gradient-mint {
+    background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 50%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .pulse-dot {
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+</head>
+{% block body %}{% endblock %}
+</html>

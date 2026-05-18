@@ -1,44 +1,86 @@
-<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<style>{{ base_css }}</style>
-</head>
-<body class="{{ orientation }}">
-<div class="brand-bar"></div>
-<main>
-  <header class="header">
-    <div class="logo-wrap">
-      <img src="file:///{{ logo_url }}" alt="qtradesedu" />
-      <span class="brand-name">qtrades<em>edu</em></span>
-    </div>
-    <span class="meta">Calendar</span>
-  </header>
+{% extends "_base.html" %}
+{% block body %}
+<body class="w-[1080px] h-[1920px] relative overflow-hidden bg-mesh text-[#eaf6f3]">
+  <div class="accent-strip"></div>
 
-  <span class="eyebrow">Event Hari Ini</span>
-  <h1 class="headline">{{ headline | safe }}</h1>
-  {% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+  <div class="relative z-10 h-full w-full flex flex-col px-16 py-20">
 
-  <div class="event-grid">
-  {% for ev in events %}
-    <div class="event-card {{ ev.impact }}">
-      <div class="time-row">
-        <span class="currency-pill">{{ ev.currency }}</span>
-        <span class="time-text">{{ ev.time }} WIB</span>
+    <header class="flex items-start justify-between mb-10">
+      <div class="flex items-center gap-3">
+        <img src="file:///{{ logo_url }}" alt="qtradesedu" class="w-14 h-14 object-contain" />
+        <div class="flex flex-col leading-none">
+          <span class="text-2xl font-bold tracking-tight">qtrades</span>
+          <span class="text-2xl font-bold tracking-tight font-serif italic text-teal-300 -mt-0.5">edu</span>
+        </div>
       </div>
-      <div class="name">{{ ev.name }}</div>
-      <div class="meta">
-        <span>F:<strong>{{ ev.forecast or "—" }}</strong></span>
-        <span>P:<strong>{{ ev.previous or "—" }}</strong></span>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10">
+        <div class="w-1.5 h-1.5 rounded-full bg-teal-400 pulse-dot"></div>
+        <span class="text-[10px] font-mono text-white/70 tracking-[0.18em] uppercase font-semibold">Today</span>
       </div>
+    </header>
+
+    <div class="flex items-center gap-3 mb-6">
+      <span class="block w-8 h-px bg-teal-400/60"></span>
+      <span class="text-[11px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold">Macro Calendar</span>
     </div>
-  {% endfor %}
+
+    <h1 class="font-bold leading-[0.95] tracking-tight mb-6 text-[110px]">
+      {{ headline | safe }}
+    </h1>
+
+    {% if subheadline %}
+    <p class="text-[22px] text-white/55 leading-snug font-light max-w-[920px] mb-8">{{ subheadline }}</p>
+    {% endif %}
+
+    <!-- Vertical card list (preferred over table per template-v2-2 reference) -->
+    <div class="space-y-4 mt-2">
+    {% for ev in events %}
+      {% set is_high = ev.impact == 'high' %}
+      {% set is_med = ev.impact == 'medium' %}
+      <div class="card-elevated rounded-2xl p-7 relative">
+        {% if is_high %}<div class="absolute top-0 left-0 bottom-0 w-1 bg-rose-400 rounded-l-2xl"></div>{% endif %}
+        {% if is_med %}<div class="absolute top-0 left-0 bottom-0 w-1 bg-amber-400 rounded-l-2xl"></div>{% endif %}
+        {% if not is_high and not is_med %}<div class="absolute top-0 left-0 bottom-0 w-1 bg-slate-500 rounded-l-2xl"></div>{% endif %}
+
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-md bg-teal-500/15 border border-teal-400/20 text-teal-300 font-mono text-sm font-semibold tracking-wider">{{ ev.currency }}</span>
+            <span class="font-mono text-[26px] font-semibold">{{ ev.time }}</span>
+            <span class="text-[10px] font-mono text-white/40 tracking-[0.18em] uppercase">WIB</span>
+          </div>
+          <span class="text-[10px] font-mono uppercase tracking-[0.22em] font-semibold {% if is_high %}text-rose-400{% elif is_med %}text-amber-400{% else %}text-white/40{% endif %}">
+            {{ ev.impact }}
+          </span>
+        </div>
+
+        <h3 class="text-[28px] font-semibold leading-tight mb-3 text-white">{{ ev.name }}</h3>
+
+        <div class="flex gap-8 text-sm font-mono pt-3 border-t border-white/5">
+          <div>
+            <div class="text-white/40 uppercase tracking-[0.22em] text-[9px] mb-1 font-semibold">Forecast</div>
+            <div class="text-white text-[18px] font-semibold">{{ ev.forecast or "—" }}</div>
+          </div>
+          <div>
+            <div class="text-white/40 uppercase tracking-[0.22em] text-[9px] mb-1 font-semibold">Previous</div>
+            <div class="text-white text-[18px] font-semibold">{{ ev.previous or "—" }}</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+
+    <footer class="mt-auto pt-6 flex items-end justify-between border-t border-white/5">
+      <div class="flex flex-col gap-0.5">
+        <span class="font-mono text-[15px] font-semibold tracking-wider text-white/85">{{ handle }}</span>
+        <span class="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase">save · share · follow</span>
+      </div>
+      <div class="text-right">
+        <span class="font-serif italic text-[14px] text-white/40 leading-tight block">
+          Watch volatility<br/>around release time
+        </span>
+      </div>
+    </footer>
+
   </div>
-
-  <footer class="footer">
-    <span class="handle">{{ handle }}</span>
-    <span class="tagline">Watch volatility around release</span>
-  </footer>
-</main>
 </body>
-</html>
+{% endblock %}
