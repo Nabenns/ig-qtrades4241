@@ -288,6 +288,11 @@ async def run_long_running(*, config_path: Path) -> int:
         report = format_audit_report(flags)
         await notifier.send(report)
 
+    async def cleanup_job() -> None:
+        from ig_qt.admin.cleanup import cleanup_old_assets
+
+        cleanup_old_assets(engine, posts_dir=cfg.paths.data_dir / "posts", age_days=30)
+
     handlers = {
         "collect_news_morning": collect_news,
         "collect_news_evening": collect_news,
@@ -298,6 +303,7 @@ async def run_long_running(*, config_path: Path) -> int:
         "story_event_reminder": story_event_job,
         "story_market_recap": story_recap_job,
         "weekly_audit": audit_job,
+        "weekly_cleanup": cleanup_job,
     }
 
     scheduler = build_scheduler(cfg=cfg, jobs_db=cfg.paths.data_dir / "jobs.db")
