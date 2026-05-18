@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<style>{{ base_css }}</style>
+</head>
+<body class="{{ orientation }}">
+<div class="brand-strip"></div>
+<span class="label-pill">Market Recap</span>
+<h1 class="headline">{{ headline }}</h1>
+{% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+<div class="recap-grid">
+{% for r in recaps %}
+  <div class="recap-card">
+    <div class="recap-symbol">{{ r.symbol }}</div>
+    <div class="recap-change {{ 'up' if r.change_pct >= 0 else 'down' }}">
+      {{ "%+.2f"|format(r.change_pct) }}%
+    </div>
+    <div class="recap-close">{{ r.close }}</div>
+  </div>
+{% endfor %}
+</div>
+<div class="handle">{{ handle }}</div>
+</body>
+</html>

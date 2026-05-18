@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<style>{{ base_css }}</style>
+</head>
+<body class="{{ orientation }}">
+<div class="brand-strip"></div>
+<span class="label-pill">Event Hari Ini</span>
+<h1 class="headline">{{ headline }}</h1>
+{% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+<div class="event-grid">
+{% for ev in events %}
+  <div class="event-card {{ ev.impact }}">
+    <div class="event-time">{{ ev.time }} WIB · {{ ev.currency }}</div>
+    <div class="event-name">{{ ev.name }}</div>
+    <div class="event-meta">
+      forecast {{ ev.forecast or "—" }} · prev {{ ev.previous or "—" }}
+    </div>
+  </div>
+{% endfor %}
+</div>
+<div class="handle">{{ handle }}</div>
+</body>
+</html>

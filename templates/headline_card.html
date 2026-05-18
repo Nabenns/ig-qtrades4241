@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<style>{{ base_css }}</style>
+</head>
+<body class="{{ orientation }}">
+<div class="brand-strip"></div>
+<span class="label-pill">{{ label | default("Forex News") }}</span>
+<h1 class="headline">{{ headline }}</h1>
+{% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+<p class="summary">{{ summary }}</p>
+<div class="handle">{{ handle }}</div>
+</body>
+</html>
