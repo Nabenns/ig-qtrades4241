@@ -11,8 +11,8 @@ llm:
   base_url_env: LLM_BASE_URL
   api_key_env: LLM_API_KEY
   models:
-    ranker: kr/claude-opus-4.7
-    composer: kr/claude-opus-4.7
+    ranker: kr/claude-sonnet-4.5
+    composer: kr/claude-sonnet-4.5
   request_timeout_seconds: 30
   max_retries: 2
 
