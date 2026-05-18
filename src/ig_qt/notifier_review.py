@@ -104,7 +104,8 @@ class TelegramReviewer:
                     {"text": "❌ Reject", "callback_data": f"reject:{post_id}"},
                 ],
                 [
-                    {"text": "🔄 Regenerate Image", "callback_data": f"regen:{post_id}"},
+                    {"text": "📋 Copy Caption", "callback_data": f"caption:{post_id}"},
+                    {"text": "🔄 Regen Image", "callback_data": f"regen:{post_id}"},
                 ],
             ]
         }
@@ -311,6 +312,35 @@ async def poll_review_callbacks(
     return processed
 
 
+async def _send_caption_only(
+    *,
+    engine: Engine,
+    reviewer: TelegramReviewer,
+    post_id: int,
+    chat_id: str,
+) -> None:
+    """Send the full IG caption + hashtags as a separate plain-text message for easy copy."""
+    with session_scope(engine) as s:
+        post = s.execute(select(Post).where(Post.id == post_id)).scalar_one_or_none()
+        if post is None:
+            return
+        caption = post.caption_final or ""
+    # Telegram text message limit 4096 chars; split if needed
+    remaining = caption
+    while remaining:
+        chunk = remaining[:3900]
+        try:
+            await reviewer._post(
+                "sendMessage",
+                chat_id=chat_id,
+                text=chunk,
+            )
+        except Exception as exc:
+            logger.warning("send_caption_only_failed err={}", exc)
+            break
+        remaining = remaining[3900:]
+
+
 async def _handle_decision(
     *,
     engine: Engine,
@@ -328,9 +358,10 @@ async def _handle_decision(
 
     if action == "approve":
         new_status = "approved"
-        decision_short = "approved"
+        decision_short = "approved — siap post manual"
         new_caption_suffix = (
             f"\n\n✅ <b>APPROVED</b> by @{html_lib.escape(username)}"
+            f"\n📲 <i>Caption + image siap di-post manual ke IG</i>"
         )
     elif action == "reject":
         new_status = "rejected"
@@ -345,6 +376,13 @@ async def _handle_decision(
             f"\n\n🔄 <b>REGEN REQUESTED</b> by @{html_lib.escape(username)}"
             " (will regenerate)"
         )
+    elif action == "caption":
+        # Special action: send caption as a new message (easy copy from telegram)
+        # No status change — just send full caption text
+        await _send_caption_only(
+            engine=engine, reviewer=reviewer, post_id=post_id, chat_id=chat_id
+        )
+        return "caption sent"
     else:
         return "unknown action"
 
