@@ -100,7 +100,7 @@ class PublisherRunner:
             posts = list(
                 s.execute(
                     select(Post)
-                    .where(Post.status == "ready", Post.scheduled_for <= now)
+                    .where(Post.status == "approved", Post.scheduled_for <= now)
                     .order_by(Post.scheduled_for)
                 ).scalars()
             )

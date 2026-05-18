@@ -74,7 +74,7 @@ async def test_runner_promotes_draft_to_post(seeded: Any) -> None:
         posts = s.query(Post).all()
         assert len(posts) == 1
         post = posts[0]
-        assert post.status == "ready"
+        assert post.status == "review"
         assert "158.42" in post.caption_final
         assert Path(post.asset_path).exists()
         drafts = s.query(PostDraft).all()

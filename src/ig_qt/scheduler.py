@@ -65,6 +65,14 @@ def build_jobs_spec(cfg: AppConfig) -> list[dict[str, Any]]:
             ),
         },
         {
+            "id": "review_send_loop",
+            "trigger": IntervalTrigger(minutes=2),
+        },
+        {
+            "id": "review_poll_loop",
+            "trigger": IntervalTrigger(seconds=20),
+        },
+        {
             "id": "weekly_audit",
             "trigger": CronTrigger(
                 day_of_week="sun", hour=22, jitter=600, timezone=sched.timezone

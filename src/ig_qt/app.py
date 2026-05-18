@@ -200,6 +200,11 @@ async def run_long_running(*, config_path: Path) -> int:
     from ig_qt.composer.runner import ComposerRunner
     from ig_qt.health import build_health_app
     from ig_qt.models import PostDraft
+    from ig_qt.notifier_review import (
+        build_reviewer,
+        poll_review_callbacks,
+        send_pending_reviews,
+    )
     from ig_qt.publisher.ig_client import IGClient
     from ig_qt.publisher.rate_limiter import offset_hours_for_timezone
     from ig_qt.publisher.runner import PublisherRunner
@@ -337,6 +342,31 @@ async def run_long_running(*, config_path: Path) -> int:
 
         cleanup_old_assets(engine, posts_dir=cfg.paths.data_dir / "posts", age_days=30)
 
+    reviewer = build_reviewer(
+        enabled=cfg.notifier.telegram_enabled,
+        bot_token=(
+            cfg.notifier.telegram_bot_token.get_secret_value()
+            if cfg.notifier.telegram_bot_token
+            else None
+        ),
+        chat_id=cfg.notifier.telegram_chat_id,
+    )
+    review_offset_path = cfg.paths.data_dir / "telegram_offset.txt"
+
+    async def review_send_job() -> None:
+        if reviewer is None:
+            return
+        await send_pending_reviews(engine=engine, reviewer=reviewer)
+
+    async def review_poll_job() -> None:
+        if reviewer is None:
+            return
+        await poll_review_callbacks(
+            engine=engine,
+            reviewer=reviewer,
+            update_state_path=review_offset_path,
+        )
+
     handlers = {
         "collect_news_morning": collect_news,
         "collect_news_evening": collect_news,
@@ -346,6 +376,8 @@ async def run_long_running(*, config_path: Path) -> int:
         "publisher_loop": publisher_job,
         "story_event_reminder": story_event_job,
         "story_market_recap": story_recap_job,
+        "review_send_loop": review_send_job,
+        "review_poll_loop": review_poll_job,
         "weekly_audit": audit_job,
         "weekly_cleanup": cleanup_job,
     }

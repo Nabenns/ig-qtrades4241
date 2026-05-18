@@ -99,3 +99,29 @@ class AngleDraft(BaseModel):
     visual_spec: VisualSpec
     disclaimer_required: bool
     confidence: float = Field(ge=0.0, le=1.0)
+    # 3 dynamic hashtags tailored to this specific post topic
+    # (composer will merge with brand-fixed hashtags)
+    dynamic_hashtags: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("dynamic_hashtags", mode="before")
+    @classmethod
+    def _coerce_hashtags(cls, v: Any) -> list[str]:
+        if v is None:
+            return []
+        if not isinstance(v, list):
+            return []
+        # Normalize: ensure each tag starts with #, no spaces
+        out: list[str] = []
+        for raw in v:
+            if not isinstance(raw, str):
+                continue
+            tag = raw.strip().replace(" ", "").lower()
+            if not tag:
+                continue
+            if not tag.startswith("#"):
+                tag = f"#{tag}"
+            # Strip non-alphanumeric except # and underscore
+            tag = "".join(ch for ch in tag if ch.isalnum() or ch in "#_")
+            if len(tag) > 1:
+                out.append(tag)
+        return out[:5]

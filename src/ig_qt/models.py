@@ -71,6 +71,7 @@ class PostDraft(Base):
     key_points: Mapped[list[Any]] = mapped_column(JSON)
     caption_draft: Mapped[str] = mapped_column(Text)
     visual_spec: Mapped[dict[str, Any]] = mapped_column(JSON)
+    dynamic_hashtags: Mapped[list[Any]] = mapped_column(JSON, default=list)
     disclaimer_required: Mapped[bool] = mapped_column(Boolean, default=False)
     confidence: Mapped[float] = mapped_column(Float)
     llm_provider: Mapped[str] = mapped_column(String(32))
@@ -138,6 +139,22 @@ class PostedTopic(Base):
 
     topic_tag: Mapped[str] = mapped_column(String(128), primary_key=True)
     last_posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ReviewMessage(Base):
+    """Tracks Telegram review message tied to a post for callback updates."""
+
+    __tablename__ = "review_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey("posts.id"), unique=True, index=True
+    )
+    chat_id: Mapped[str] = mapped_column(String(64))
+    message_id: Mapped[int] = mapped_column(Integer)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision: Mapped[str | None] = mapped_column(String(16))
 
 
 class EvergreenDraft(Base):

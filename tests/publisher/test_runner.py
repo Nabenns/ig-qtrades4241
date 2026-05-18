@@ -66,7 +66,7 @@ def seeded(tmp_path: Path) -> Any:
                 asset_path=str(asset),
                 visual_type="headline",
                 scheduled_for=now - timedelta(minutes=1),
-                status="ready",
+                status="approved",
             )
         )
     return engine, asset

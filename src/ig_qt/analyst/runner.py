@@ -135,6 +135,7 @@ class AnalystRunner:
                 key_points=list(draft.key_points),
                 caption_draft=draft.caption_draft,
                 visual_spec=draft.visual_spec.model_dump(),
+                dynamic_hashtags=list(draft.dynamic_hashtags),
                 disclaimer_required=draft.disclaimer_required,
                 confidence=draft.confidence,
                 llm_provider=self._provider.name,

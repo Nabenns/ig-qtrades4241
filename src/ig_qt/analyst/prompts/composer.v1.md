@@ -61,6 +61,7 @@ Schema:
   "angle": "1-line angle description",
   "key_points": ["3-5 bullet points"],
   "caption_draft": "...",
+  "dynamic_hashtags": ["#hashtag1", "#hashtag2", "#hashtag3"],
   "visual_spec": {
     "type": "news_hero" | "big_number" | "panel" | "headline" | "chart" | "event" | "recap",
     "symbol": "EUR/USD" | null,
@@ -82,6 +83,16 @@ Schema:
   "confidence": 0.0-1.0
 }
 ```
+
+Hashtag rules (`dynamic_hashtags`):
+- Generate 3-5 hashtags SPECIFIC to this post's topic. Lowercase. No spaces.
+- Mix Indonesian + English where natural. Examples:
+  - Fed news → ["#fedrate", "#suku_bunga_fed", "#fomc"]
+  - USD/JPY moves → ["#usdjpy", "#dollar_yen", "#forexpairs"]
+  - Bitcoin crash → ["#bitcoincrash", "#btcanjlok", "#cryptopasar"]
+  - Indonesian context → ["#rupiahmenguat", "#bankindonesia", "#ekonomiindonesia"]
+- Do NOT include brand tags (#qtradesedu, #forex, #trading) — caller appends those.
+- Tags should be specific enough for discovery, not too broad.
 
 Style preference: For BOTH feed and story posts, **strongly prefer `news_hero`** as the default — it's the most engaging visual on IG. Only fall back to other types when there's truly no good visual scene to depict.
 

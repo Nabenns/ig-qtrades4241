@@ -21,22 +21,14 @@ from ig_qt.composer.postprocess import finalize_feed_image, finalize_story_image
 from ig_qt.db import session_scope
 from ig_qt.models import Post, PostDraft, PriceCache
 
-_DEFAULT_HASHTAGS: tuple[str, ...] = (
-    "#forex",
-    "#trading",
-    "#marketupdate",
-    "#usd",
-    "#fed",
-    "#economy",
-    "#macroeconomics",
-    "#financialnews",
-    "#globalmarkets",
-    "#dollar",
-    "#euro",
-    "#yen",
-    "#tradinglife",
-    "#chartanalysis",
+_BRAND_HASHTAGS: tuple[str, ...] = (
+    "#qtradesedu",
+    "#forexindonesia",
+    "#trader",
+    "#tradingforex",
+    "#edukasiforex",
 )
+_DEFAULT_HASHTAGS: tuple[str, ...] = _BRAND_HASHTAGS
 _DEFAULT_CTA = "Komentar pendapatmu di bawah"
 
 
@@ -289,10 +281,21 @@ class ComposerRunner:
             )
 
         opener = pick_opener(seed=draft.id)
+
+        # Hybrid hashtags: 3 dynamic from LLM + 5 brand fixed
+        dynamic_tags = list(draft.dynamic_hashtags or [])[:3]
+        seen: set[str] = {t.lower() for t in dynamic_tags}
+        merged_tags: list[str] = list(dynamic_tags)
+        for brand_tag in self._hashtags:
+            if brand_tag.lower() not in seen:
+                merged_tags.append(brand_tag)
+                seen.add(brand_tag.lower())
+        merged_tags = merged_tags[:15]
+
         caption = finalize_caption(
             opener=opener,
             body=draft.caption_draft,
-            hashtags=list(self._hashtags),
+            hashtags=merged_tags,
             cta=self._cta,
             disclaimer_required=draft.disclaimer_required,
             prices=last_close,
@@ -303,11 +306,11 @@ class ComposerRunner:
             draft_id=draft.id,
             post_type=draft.post_type,
             caption_final=caption,
-            hashtags=list(self._hashtags),
+            hashtags=merged_tags,
             asset_path=str(final_path),
             visual_type=spec.type,
             scheduled_for=scheduled,
-            status="ready",
+            status="review",
         )
 
     async def run_once(self) -> ComposeSummary:
