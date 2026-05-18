@@ -1,5 +1,5 @@
-import sqlite3
 import shutil
+import sqlite3
 from pathlib import Path
 
 c = sqlite3.connect("data/ig_qt.db")
