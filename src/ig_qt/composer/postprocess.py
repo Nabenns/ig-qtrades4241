@@ -1,10 +1,14 @@
-"""Final image post-processing: resize, watermark, sRGB JPEG with size cap."""
+"""Final image post-processing: resize, sRGB JPEG with size cap.
+
+Note: watermarking (logo + handle) is now done at HTML render stage to avoid
+duplication. Postprocess only normalizes size and converts to sRGB JPEG.
+"""
 from __future__ import annotations
 
 from pathlib import Path
 
 from loguru import logger
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from PIL.Image import Resampling
 
 _MAX_BYTES = 8 * 1024 * 1024
@@ -29,28 +33,6 @@ def _resize_cover(img: Image.Image, target: tuple[int, int]) -> Image.Image:
     return img.crop((left, top, left + tw, top + th))
 
 
-def _paste_logo(canvas: Image.Image, logo_path: Path, *, handle: str) -> Image.Image:
-    if not logo_path.exists():
-        logger.warning("postprocess_logo_missing path={}", logo_path)
-        return canvas
-    logo = Image.open(logo_path).convert("RGBA")
-    logo_size = 96
-    logo = logo.resize((logo_size, logo_size), Resampling.LANCZOS)
-    x = canvas.width - logo_size - 56
-    y = canvas.height - logo_size - 56
-    canvas_rgba = canvas.convert("RGBA")
-    canvas_rgba.paste(logo, (x, y), logo)
-    draw = ImageDraw.Draw(canvas_rgba)
-    try:
-        font: ImageFont.ImageFont | ImageFont.FreeTypeFont = ImageFont.truetype(
-            "DejaVuSans.ttf", 24
-        )
-    except OSError:
-        font = ImageFont.load_default()
-    draw.text((56, canvas.height - 56), handle, fill=(255, 255, 255, 230), font=font)
-    return canvas_rgba.convert("RGB")
-
-
 def _save_jpeg_capped(img: Image.Image, dst: Path) -> None:
     """Save JPEG, re-compress with lower quality if file > 8MB."""
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -68,9 +50,14 @@ def _save_jpeg_capped(img: Image.Image, dst: Path) -> None:
 def finalize_feed_image(
     *, src: Path, dst: Path, logo_path: Path, handle: str
 ) -> Path:
+    """Resize to 1080x1350 (4:5 portrait) and save as sRGB JPEG.
+
+    `logo_path` and `handle` are accepted for backward compatibility but no
+    longer used (HTML template now embeds logo + handle directly).
+    """
+    del logo_path, handle  # intentionally unused — branding handled in HTML
     img = _open_rgb(src)
     img = _resize_cover(img, (1080, 1350))
-    img = _paste_logo(img, logo_path, handle=handle)
     _save_jpeg_capped(img, dst)
     return dst
 
@@ -78,8 +65,9 @@ def finalize_feed_image(
 def finalize_story_image(
     *, src: Path, dst: Path, logo_path: Path, handle: str
 ) -> Path:
+    """Resize to 1080x1920 and save as sRGB JPEG."""
+    del logo_path, handle
     img = _open_rgb(src)
     img = _resize_cover(img, (1080, 1920))
-    img = _paste_logo(img, logo_path, handle=handle)
     _save_jpeg_capped(img, dst)
     return dst

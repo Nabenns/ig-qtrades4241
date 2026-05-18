@@ -1,6 +1,7 @@
 """Render HTML templates to PNG via Playwright."""
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,17 @@ def _build_env() -> Environment:
     )
 
 
+def _logo_data_uri() -> str:
+    """Encode logo PNG as base64 data URI so Chromium can load it from set_content
+    (file:// URLs are blocked when document has no origin).
+    """
+    if not _LOGO_PATH.exists():
+        return ""
+    raw = _LOGO_PATH.read_bytes()
+    b64 = base64.b64encode(raw).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
+
 async def render_card(
     *,
     template: str,
@@ -31,17 +43,14 @@ async def render_card(
 ) -> Path:
     """Render Jinja template, screenshot via headless Chromium, save PNG."""
     env = _build_env()
-    logo_url = str(_LOGO_PATH.resolve()).replace("\\", "/")
-    ctx = {**context, "logo_url": logo_url}
+    ctx = {**context, "logo_url": _logo_data_uri()}
     html = env.get_template(template).render(**ctx)
 
     async with browser_session() as browser_ctx:
         page = await browser_ctx.new_page()
         await page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
-        # Use load_state networkidle + extra wait for Tailwind CDN to apply utility classes
         await page.set_content(html, wait_until="networkidle", timeout=45_000)
         try:
-            # Wait for fonts (Geist via Google Fonts)
             await page.evaluate("document.fonts.ready")
         except Exception as exc:
             logger.debug("html_render_font_wait_skip err={}", exc)
