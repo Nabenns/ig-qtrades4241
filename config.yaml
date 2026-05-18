@@ -11,8 +11,8 @@ llm:
   base_url_env: LLM_BASE_URL
   api_key_env: LLM_API_KEY
   models:
-    ranker: gemini-2.0-flash
-    composer: claude-sonnet-4
+    ranker: kr/claude-opus-4.7
+    composer: kr/claude-opus-4.7
   request_timeout_seconds: 30
   max_retries: 2
 

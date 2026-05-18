@@ -1,4 +1,24 @@
 services:
+  router:
+    image: decolua/9router:latest
+    container_name: ig-qt-router
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:20128:20128"   # localhost-only dashboard + API
+    volumes:
+      - ./router-data:/app/data
+    environment:
+      DATA_DIR: /app/data
+      PORT: "20128"
+      HOSTNAME: 0.0.0.0
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:20128"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   ig-qt:
     build: .
     image: ig-qt:latest
@@ -13,6 +33,9 @@ services:
       - ./config.yaml:/app/config.yaml:ro
     ports:
       - "127.0.0.1:8080:8080"   # localhost-only health endpoint
+    depends_on:
+      router:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:8080/health"]
       interval: 60s

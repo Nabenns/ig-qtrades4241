@@ -20,6 +20,7 @@ dist/
 # Data (runtime)
 data/*
 !data/.gitkeep
+router-data/
 
 # Logs
 *.log
