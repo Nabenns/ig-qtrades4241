@@ -112,8 +112,12 @@ async def run_compose_once(*, config_path: Path) -> int:
 
     image_gen = build_image_gen(
         enabled=cfg.image_gen.enabled,
-        account_id=cfg.image_gen.account_id,
-        api_token=(
+        provider=cfg.image_gen.provider,
+        router_base_url=cfg.llm.base_url,
+        router_api_key=cfg.llm.api_key.get_secret_value(),
+        router_model=cfg.image_gen.model,
+        cf_account_id=cfg.image_gen.account_id,
+        cf_api_token=(
             cfg.image_gen.api_token.get_secret_value()
             if cfg.image_gen.api_token
             else None
@@ -230,8 +234,12 @@ async def run_long_running(*, config_path: Path) -> int:
 
     image_gen = build_image_gen(
         enabled=cfg.image_gen.enabled,
-        account_id=cfg.image_gen.account_id,
-        api_token=(
+        provider=cfg.image_gen.provider,
+        router_base_url=cfg.llm.base_url,
+        router_api_key=cfg.llm.api_key.get_secret_value(),
+        router_model=cfg.image_gen.model,
+        cf_account_id=cfg.image_gen.account_id,
+        cf_api_token=(
             cfg.image_gen.api_token.get_secret_value()
             if cfg.image_gen.api_token
             else None

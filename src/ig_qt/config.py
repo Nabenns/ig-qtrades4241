@@ -94,9 +94,11 @@ class NotifierConfig(BaseModel):
 
 class ImageGenConfig(BaseModel):
     enabled: bool
-    provider: str = "cloudflare"
-    account_id: str | None
-    api_token: SecretStr | None
+    provider: str = "router_9"  # router_9 | cloudflare
+    model: str = "cf/@cf/black-forest-labs/flux-1-schnell"
+    # Cloudflare-direct fields (only when provider=cloudflare)
+    account_id: str | None = None
+    api_token: SecretStr | None = None
 
 
 class PathsConfig(BaseModel):
@@ -191,18 +193,28 @@ def load_config(yaml_path: Path) -> AppConfig:
 
     img_raw = raw.get("image_gen", {})
     if img_raw.get("enabled"):
-        account_id = _optional_env(img_raw["account_id_env"])
-        token_val = _optional_env(img_raw["api_token_env"])
-        image_gen = ImageGenConfig(
-            enabled=True,
-            provider=img_raw.get("provider", "cloudflare"),
-            account_id=account_id,
-            api_token=SecretStr(token_val) if token_val else None,
-        )
+        provider = img_raw.get("provider", "router_9")
+        model = img_raw.get("model", "cf/@cf/black-forest-labs/flux-1-schnell")
+        if provider == "cloudflare":
+            account_id = _optional_env(img_raw["account_id_env"])
+            token_val = _optional_env(img_raw["api_token_env"])
+            image_gen = ImageGenConfig(
+                enabled=True,
+                provider=provider,
+                model=model,
+                account_id=account_id,
+                api_token=SecretStr(token_val) if token_val else None,
+            )
+        else:  # router_9 (default) — reuses LLM_BASE_URL/LLM_API_KEY
+            image_gen = ImageGenConfig(
+                enabled=True,
+                provider=provider,
+                model=model,
+                account_id=None,
+                api_token=None,
+            )
     else:
-        image_gen = ImageGenConfig(
-            enabled=False, provider="cloudflare", account_id=None, api_token=None
-        )
+        image_gen = ImageGenConfig(enabled=False)
 
     paths_raw = raw["paths"]
     data_dir = Path(

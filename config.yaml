@@ -58,7 +58,13 @@ notifier:
 
 image_gen:
   enabled: true
-  provider: cloudflare
+  # provider: router_9 (recommended) | cloudflare
+  # router_9 routes via 9router's /v1/images/generations using LLM_BASE_URL + LLM_API_KEY.
+  # Setup once: connect Cloudflare provider in 9router dashboard, then use the
+  # exact model id shown there (typically prefixed with cf/).
+  provider: router_9
+  model: cf/@cf/black-forest-labs/flux-1-schnell
+  # Only required when provider=cloudflare (direct mode)
   account_id_env: CF_ACCOUNT_ID
   api_token_env: CF_API_TOKEN
 

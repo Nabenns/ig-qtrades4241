@@ -14,7 +14,7 @@ from ig_qt.analyst.schemas import VisualSpec
 from ig_qt.composer.caption import finalize_caption, pick_opener
 from ig_qt.composer.chart_renderer import render_chart_png
 from ig_qt.composer.html_renderer import build_headline_html, render_card
-from ig_qt.composer.image_gen import CloudflareImageGen, ImageGenError
+from ig_qt.composer.image_gen import ImageGenerator, ImageGenError
 from ig_qt.composer.pillow_fallback import render_text_card
 from ig_qt.composer.postprocess import finalize_feed_image, finalize_story_image
 from ig_qt.db import session_scope
@@ -56,7 +56,7 @@ class ComposerRunner:
         scheduled_for_factory: Callable[[PostDraft], Any],
         hashtags: tuple[str, ...] = _DEFAULT_HASHTAGS,
         cta: str = _DEFAULT_CTA,
-        image_gen: CloudflareImageGen | None = None,
+        image_gen: ImageGenerator | None = None,
     ) -> None:
         self._engine = engine
         self._data_dir = data_dir
