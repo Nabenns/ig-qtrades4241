@@ -40,13 +40,18 @@ async def render_card(
     context: dict[str, Any],
     out_path: Path,
     viewport: tuple[int, int],
+    device_scale_factor: float = 2.0,
 ) -> Path:
-    """Render Jinja template, screenshot via headless Chromium, save PNG."""
+    """Render Jinja template, screenshot via headless Chromium, save PNG.
+
+    Uses device_scale_factor=2 by default for retina-quality output. Output PNG
+    will be 2x viewport pixels (e.g. 2160x2700 for 1080x1350 viewport).
+    """
     env = _build_env()
     ctx = {**context, "logo_url": _logo_data_uri()}
     html = env.get_template(template).render(**ctx)
 
-    async with browser_session() as browser_ctx:
+    async with browser_session(device_scale_factor=device_scale_factor) as browser_ctx:
         page = await browser_ctx.new_page()
         await page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
         await page.set_content(html, wait_until="networkidle", timeout=45_000)
@@ -54,9 +59,13 @@ async def render_card(
             await page.evaluate("document.fonts.ready")
         except Exception as exc:
             logger.debug("html_render_font_wait_skip err={}", exc)
-        # Extra wait for Tailwind CDN to inject computed styles
         await page.wait_for_timeout(800)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         await page.screenshot(path=str(out_path), full_page=False, type="png")
-    logger.info("html_render_done template={} out={}", template, out_path)
+    logger.info(
+        "html_render_done template={} out={} scale={}",
+        template,
+        out_path,
+        device_scale_factor,
+    )
     return out_path

@@ -27,7 +27,8 @@ async def test_render_headline_card_produces_png(tmp_path: Path) -> None:
     )
     assert out.exists()
     img = Image.open(out)
-    assert img.size == (1080, 1080)
+    # Renders at 2x device scale factor by default
+    assert img.size == (2160, 2160)
 
 
 @pytest.mark.asyncio
@@ -63,4 +64,4 @@ async def test_render_event_card_with_two_events(tmp_path: Path) -> None:
         viewport=(1080, 1920),
     )
     img = Image.open(out)
-    assert img.size == (1080, 1920)
+    assert img.size == (2160, 3840)

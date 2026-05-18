@@ -27,7 +27,10 @@ def pick_user_agent(*, seed: int | None = None) -> str:
 
 @asynccontextmanager
 async def browser_session(
-    *, timezone_id: str = "Asia/Jakarta", locale: str = "en-US"
+    *,
+    timezone_id: str = "Asia/Jakarta",
+    locale: str = "en-US",
+    device_scale_factor: float = 1.0,
 ) -> AsyncIterator[BrowserContext]:
     """Yield a Playwright context with realistic UA + timezone. Always closes browser."""
     ua = pick_user_agent()
@@ -39,6 +42,7 @@ async def browser_session(
             timezone_id=timezone_id,
             locale=locale,
             viewport={"width": 1366, "height": 768},
+            device_scale_factor=device_scale_factor,
         )
         try:
             yield ctx
