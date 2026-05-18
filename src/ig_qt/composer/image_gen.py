@@ -20,10 +20,14 @@ import httpx
 from loguru import logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-# Negative-style style hints to keep generations brand-safe and on-aesthetic
+# Style hints to keep generations brand-safe and on-aesthetic.
+# IMPORTANT: explicitly forbid all text/typography because Flux can't spell
+# reliably and renders garbled words on signs, banners, etc.
 _STYLE_SUFFIX = (
     ", cinematic lighting, photorealistic, dramatic atmosphere, dark moody,"
-    " 4k high quality, no text, no watermark, no logo"
+    " 4k high quality."
+    " ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO WATERMARK, NO LOGO,"
+    " NO CAPTIONS, NO SIGNS WITH TEXT, NO TYPOGRAPHY"
 )
 
 

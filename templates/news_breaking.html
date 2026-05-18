@@ -6,11 +6,14 @@
   <img src="{{ hero_image_url }}" alt="" class="absolute inset-0 w-full h-full object-cover" />
   {% endif %}
 
-  {# Dark gradient overlay so headline pops #}
-  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/30"></div>
+  {# Dark gradient overlay so headline pops — softer so hero remains visible #}
+  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+
+  {# Strong fade specifically at bottom 40% where headline sits #}
+  <div class="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/95 via-black/70 to-transparent"></div>
 
   {# Subtle vignette #}
-  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.5)_100%)]"></div>
+  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.4)_100%)]"></div>
 
   <div class="relative z-10 h-full w-full flex flex-col px-12 py-12">
 
