@@ -1,7 +1,7 @@
 """Application bootstrap."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from loguru import logger
@@ -88,3 +88,36 @@ async def run_analyze_once(*, config_path: Path) -> int:
         summary.rejected_low_confidence,
     )
     return 0 if (summary.feed_drafts + summary.story_drafts) > 0 else 2
+
+
+async def run_compose_once(*, config_path: Path) -> int:
+    """One-shot composer run: process pending drafts into ready posts."""
+    from ig_qt.composer.runner import ComposerRunner
+    from ig_qt.models import PostDraft
+
+    cfg = load_config(config_path)
+    log_dir = cfg.paths.data_dir / "logs"
+    configure_logging(log_dir=log_dir, level="INFO", json_logs=True)
+    engine = build_engine(cfg.paths.data_dir / "ig_qt.db")
+    init_schema(engine)
+
+    feed_hour = cfg.schedule.feed_post_hour
+
+    def _sched_for(d: PostDraft) -> datetime:
+        now = datetime.now(UTC)
+        if d.post_type == "feed":
+            return now.replace(hour=feed_hour, minute=0, second=0, microsecond=0)
+        return now + timedelta(minutes=30)
+
+    runner = ComposerRunner(
+        engine=engine,
+        data_dir=cfg.paths.data_dir,
+        logo_path=Path(cfg.brand.logo_path),
+        handle=cfg.brand.handle,
+        scheduled_for_factory=_sched_for,
+    )
+    summary = await runner.run_once()
+    logger.info(
+        "compose_done processed={} failed={}", summary.processed, summary.failed
+    )
+    return 0 if summary.failed == 0 else 1

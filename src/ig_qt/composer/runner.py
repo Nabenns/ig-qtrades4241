@@ -1,0 +1,223 @@
+"""Compose pending drafts into ready-to-publish posts."""
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from loguru import logger
+from sqlalchemy import Engine, select
+from sqlalchemy.orm import Session
+
+from ig_qt.analyst.schemas import VisualSpec
+from ig_qt.composer.caption import finalize_caption, pick_opener
+from ig_qt.composer.chart_renderer import render_chart_png
+from ig_qt.composer.html_renderer import render_card
+from ig_qt.composer.pillow_fallback import render_text_card
+from ig_qt.composer.postprocess import finalize_feed_image, finalize_story_image
+from ig_qt.db import session_scope
+from ig_qt.models import Post, PostDraft, PriceCache
+
+_DEFAULT_HASHTAGS: tuple[str, ...] = (
+    "#forex",
+    "#trading",
+    "#marketupdate",
+    "#usd",
+    "#fed",
+    "#economy",
+    "#macroeconomics",
+    "#financialnews",
+    "#globalmarkets",
+    "#dollar",
+    "#euro",
+    "#yen",
+    "#tradinglife",
+    "#chartanalysis",
+)
+_DEFAULT_CTA = "Komentar pendapatmu di bawah"
+
+
+@dataclass(frozen=True, slots=True)
+class ComposeSummary:
+    processed: int
+    failed: int
+
+
+class ComposerRunner:
+    def __init__(
+        self,
+        *,
+        engine: Engine,
+        data_dir: Path,
+        logo_path: Path,
+        handle: str,
+        scheduled_for_factory: Callable[[PostDraft], Any],
+        hashtags: tuple[str, ...] = _DEFAULT_HASHTAGS,
+        cta: str = _DEFAULT_CTA,
+    ) -> None:
+        self._engine = engine
+        self._data_dir = data_dir
+        self._logo_path = logo_path
+        self._handle = handle
+        self._sched = scheduled_for_factory
+        self._hashtags = hashtags
+        self._cta = cta
+
+    def _latest_prices(self, session: Session) -> dict[str, list[dict[str, Any]]]:
+        rows = list(session.execute(select(PriceCache)).scalars())
+        latest: dict[str, PriceCache] = {}
+        for r in rows:
+            cur = latest.get(r.symbol)
+            if cur is None or r.fetched_at > cur.fetched_at:
+                latest[r.symbol] = r
+        return {sym: list(r.ohlc_json) for sym, r in latest.items()}
+
+    def _last_close_map(
+        self, prices: dict[str, list[dict[str, Any]]]
+    ) -> dict[str, float]:
+        out: dict[str, float] = {}
+        for sym, ohlc in prices.items():
+            if ohlc:
+                out[sym] = float(ohlc[-1]["close"])
+        return out
+
+    async def _render_visual(
+        self,
+        spec: VisualSpec,
+        prices: dict[str, list[dict[str, Any]]],
+        out_dir: Path,
+        orientation: str,
+    ) -> Path:
+        viewport = (1080, 1080) if orientation == "feed" else (1080, 1920)
+        raw_path = out_dir / "raw.png"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        if spec.type == "chart" and spec.symbol and spec.timeframe:
+            ohlc = prices.get(spec.symbol, [])
+            try:
+                render_chart_png(
+                    ohlc=ohlc,
+                    symbol=spec.symbol,
+                    timeframe=spec.timeframe,
+                    annotations=spec.annotations,
+                    headline=spec.headline,
+                    out_path=raw_path,
+                    size=viewport,
+                )
+                return raw_path
+            except Exception as exc:
+                logger.warning("chart_render_failed fallback_to_headline error={}", exc)
+
+        if spec.type in ("chart", "headline"):
+            try:
+                await render_card(
+                    template="headline_card.html",
+                    context={
+                        "headline": spec.headline,
+                        "subheadline": spec.subheadline,
+                        "summary": " · ".join(spec.annotations[:3]) or "",
+                        "label": "Forex News",
+                        "handle": self._handle,
+                        "orientation": orientation,
+                    },
+                    out_path=raw_path,
+                    viewport=viewport,
+                )
+                return raw_path
+            except Exception as exc:
+                logger.warning("html_render_failed fallback_to_pillow error={}", exc)
+
+        render_text_card(
+            headline=spec.headline,
+            body=spec.subheadline or "",
+            out_path=raw_path,
+            size=viewport,
+        )
+        return raw_path
+
+    async def _process_draft(self, draft: PostDraft) -> Post | None:
+        try:
+            spec = VisualSpec.model_validate(draft.visual_spec)
+        except Exception as exc:
+            logger.error("draft_visual_spec_invalid id={} error={}", draft.id, exc)
+            return None
+
+        post_dir = self._data_dir / "posts" / str(draft.id)
+        with session_scope(self._engine) as s:
+            prices = self._latest_prices(s)
+        last_close = self._last_close_map(prices)
+
+        raw_visual = await self._render_visual(
+            spec=spec, prices=prices, out_dir=post_dir, orientation=draft.post_type
+        )
+        final_path = post_dir / ("feed.jpg" if draft.post_type == "feed" else "story.jpg")
+        if draft.post_type == "feed":
+            finalize_feed_image(
+                src=raw_visual, dst=final_path, logo_path=self._logo_path, handle=self._handle
+            )
+        else:
+            finalize_story_image(
+                src=raw_visual, dst=final_path, logo_path=self._logo_path, handle=self._handle
+            )
+
+        opener = pick_opener(seed=draft.id)
+        caption = finalize_caption(
+            opener=opener,
+            body=draft.caption_draft,
+            hashtags=list(self._hashtags),
+            cta=self._cta,
+            disclaimer_required=draft.disclaimer_required,
+            prices=last_close,
+        )
+
+        scheduled = self._sched(draft)
+        return Post(
+            draft_id=draft.id,
+            post_type=draft.post_type,
+            caption_final=caption,
+            hashtags=list(self._hashtags),
+            asset_path=str(final_path),
+            visual_type=spec.type,
+            scheduled_for=scheduled,
+            status="ready",
+        )
+
+    async def run_once(self) -> ComposeSummary:
+        processed = 0
+        failed = 0
+        with session_scope(self._engine) as s:
+            drafts = list(
+                s.execute(
+                    select(PostDraft).where(PostDraft.status == "pending").order_by(PostDraft.id)
+                ).scalars()
+            )
+            draft_data = [(d.id, d) for d in drafts]
+            for d in drafts:
+                s.expunge(d)
+
+        for draft_id, draft in draft_data:
+            try:
+                post = await self._process_draft(draft)
+                if post is None:
+                    failed += 1
+                    continue
+                with session_scope(self._engine) as s:
+                    s.add(post)
+                    s.flush()
+                    target = s.execute(
+                        select(PostDraft).where(PostDraft.id == draft_id)
+                    ).scalar_one()
+                    target.status = "consumed"
+                processed += 1
+            except Exception as exc:
+                logger.error("compose_failed draft_id={} error={}", draft_id, exc)
+                failed += 1
+                with session_scope(self._engine) as s:
+                    target = s.execute(
+                        select(PostDraft).where(PostDraft.id == draft_id)
+                    ).scalar_one()
+                    target.status = "rejected"
+
+        logger.info("compose_done processed={} failed={}", processed, failed)
+        return ComposeSummary(processed=processed, failed=failed)

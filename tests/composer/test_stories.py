@@ -1,14 +1,14 @@
 """Tests for story builders."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ig_qt.composer.stories import build_event_reminder_context, build_market_recap_context
 
 
 def test_build_event_reminder_filters_high_medium_only() -> None:
-    today = datetime(2026, 5, 17, tzinfo=timezone.utc)
+    today = datetime(2026, 5, 17, tzinfo=UTC)
     events: list[Any] = [
         type(
             "E",
