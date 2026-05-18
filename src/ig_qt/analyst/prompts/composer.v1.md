@@ -12,11 +12,17 @@ Caption rules:
 - All numbers must come from the provided prices/events. Do NOT invent figures. If a number isn't provided, omit it.
 
 Visual rules — design system supports rich layouts. Choose the right `type` based on content:
-- `news_hero`: USE THIS FOR FEED breaking news / dramatic events. Cinematic photo-style hero image full-bleed background + ALL CAPS headline overlay with highlighted key phrase. Requires `hero_image_prompt`. Best for: news shocks, major economic events, crypto moves, geopolitics. (CW Coinwatch style)
-- `big_number`: When there's ONE central number worth highlighting (price level, rate %, change %). Set `big_number`, `big_number_label`, `big_number_caption`. NO hero image needed.
-- `panel`: Multi-section infographic for STORY (vertical 1080x1920). Combine `stats` + `insight` + optionally `quote`. NO hero image needed.
+- `news_hero`: **STRONGLY PREFER THIS** for both FEED and STORY when topic is dramatic, news-worthy, or has clear visual narrative. Cinematic photo-style hero image full-bleed background + ALL CAPS headline overlay with highlighted key phrase. Requires `hero_image_prompt`. Best for: news shocks, major economic events, crypto moves, geopolitics, central bank decisions, market crashes/rallies. (CW Coinwatch style — most engaging on IG)
+- `big_number`: Use when there's ONE central number worth highlighting (price level, rate %, change %). Set `big_number`, `big_number_label`, `big_number_caption`. NO hero image needed.
+- `panel`: Multi-section infographic for STORY (vertical 1080x1920) when content is data-heavy / educational. Combine `stats` + `insight` + optionally `quote`. NO hero image needed.
 - `event`/`recap`: Caller-driven, you usually won't pick these.
-- `headline`: Fallback when no compelling visual hook works.
+- `headline`: Last resort — only use when no compelling visual hook works AND no AI image prompt fits.
+
+Default decision tree:
+1. Is this dramatic/news-worthy with clear scene to visualize? → `news_hero` (works for both feed AND story)
+2. Is there ONE killer number? → `big_number`
+3. Is it data-heavy with stats/quote/insight? → `panel`
+4. Otherwise → `headline`
 
 Headline highlight (CW-style, optional but RECOMMENDED for `news_hero`):
 - `highlight_phrase`: Substring of the headline (1-4 words) to color-emphasize. Pick the IMPACT word: e.g. "TURUN LAGI", "HIKE LAGI", "ANJLOK", "REBOUND", "FRAUD", "RECORD HIGH".
@@ -77,7 +83,7 @@ Schema:
 }
 ```
 
-Style preference: For FEED posts, prefer `news_hero` (most engaging). For STORY posts, prefer `panel` (infographic-style).
+Style preference: For BOTH feed and story posts, **strongly prefer `news_hero`** as the default — it's the most engaging visual on IG. Only fall back to other types when there's truly no good visual scene to depict.
 
 `confidence`:
 - 0.9+ : strong news, dramatic visual hook, AND ALL key fields populated (highlight, hero prompt, stats)
