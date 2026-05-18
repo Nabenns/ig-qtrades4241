@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Protocol
 
 
@@ -15,6 +15,10 @@ class _EventLike(Protocol):
     previous: str | None
 
 
+def _ensure_aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+
+
 def build_event_reminder_context(
     *,
     events: Sequence[_EventLike],
@@ -22,12 +26,16 @@ def build_event_reminder_context(
     window_hours: int = 12,
 ) -> dict[str, Any]:
     end = now + timedelta(hours=window_hours)
-    filtered = [
-        e for e in events if e.impact in ("high", "medium") and now <= e.event_time <= end
-    ]
+    filtered = []
+    for e in events:
+        if e.impact not in ("high", "medium"):
+            continue
+        et = _ensure_aware(e.event_time)
+        if now <= et <= end:
+            filtered.append((e, et))
     items: list[dict[str, Any]] = []
-    for e in filtered[:4]:
-        local = e.event_time.astimezone(timezone(timedelta(hours=7)))  # WIB
+    for e, et in filtered[:4]:
+        local = et.astimezone(timezone(timedelta(hours=7)))  # WIB
         items.append(
             {
                 "time": local.strftime("%H:%M"),
