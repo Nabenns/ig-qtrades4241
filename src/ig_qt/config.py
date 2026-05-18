@@ -9,6 +9,26 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 
+def _load_dotenv_if_present(env_path: Path = Path(".env")) -> None:
+    """Lightweight .env loader (no dotenv dependency). Sets os.environ keys not already set."""
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+_load_dotenv_if_present()
+
+
 class BrandConfig(BaseModel):
     primary: str
     accent: str
