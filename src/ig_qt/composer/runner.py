@@ -235,6 +235,32 @@ class ComposerRunner:
             except Exception as exc:
                 logger.warning("news_hero_render_failed fallback err={}", exc)
 
+        # `big_number` post → typographic hero with watermark + chart silhouette
+        if spec.type == "big_number" and spec.big_number:
+            try:
+                await render_card(
+                    template="big_number_hero.html",
+                    context=context,
+                    out_path=raw_path,
+                    viewport=viewport,
+                )
+                return raw_path
+            except Exception as exc:
+                logger.warning("big_number_render_failed fallback err={}", exc)
+
+        # `panel` post → multi-section infographic for story
+        if spec.type == "panel" and orientation == "story":
+            try:
+                await render_card(
+                    template="panel_infographic.html",
+                    context=context,
+                    out_path=raw_path,
+                    viewport=viewport,
+                )
+                return raw_path
+            except Exception as exc:
+                logger.warning("panel_render_failed fallback err={}", exc)
+
         if spec.type in ("chart", "headline", "big_number", "panel", "news_hero"):
             try:
                 await render_card(

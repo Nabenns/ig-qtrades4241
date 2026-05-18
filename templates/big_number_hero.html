@@ -1,0 +1,103 @@
+{% extends "_base.html" %}
+{% block body %}
+<body class="{{ 'w-[1080px] h-[1920px]' if orientation == 'story' else 'w-[1080px] h-[1350px]' }} relative overflow-hidden bg-mesh text-[#eaf6f3]">
+  <div class="accent-strip"></div>
+
+  {# Decorative chart silhouette in background #}
+  <svg class="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none" viewBox="0 0 1080 1350" preserveAspectRatio="xMidYMid slice">
+    <path d="M0,900 L60,820 L120,860 L180,750 L240,800 L300,650 L360,700 L420,580 L480,640 L540,500 L600,560 L660,420 L720,480 L780,360 L840,420 L900,300 L960,360 L1020,260 L1080,320" stroke="#5eead4" stroke-width="3" fill="none"/>
+    <path d="M0,900 L60,820 L120,860 L180,750 L240,800 L300,650 L360,700 L420,580 L480,640 L540,500 L600,560 L660,420 L720,480 L780,360 L840,420 L900,300 L960,360 L1020,260 L1080,320 L1080,1350 L0,1350 Z" fill="url(#chartGrad)"/>
+    <defs>
+      <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#5eead4;stop-opacity:0.3"/>
+        <stop offset="100%" style="stop-color:#5eead4;stop-opacity:0"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  {# Massive watermark number behind everything #}
+  {% if big_number %}
+  <div class="absolute -right-8 top-1/2 -translate-y-1/2 text-[420px] font-black tracking-[-0.05em] leading-none text-teal-400/[0.06] select-none pointer-events-none">
+    {{ big_number[:3] if big_number|length <= 3 else big_number }}
+  </div>
+  {% endif %}
+
+  <div class="relative z-10 h-full w-full flex flex-col px-16 py-14">
+
+    {# Header #}
+    <header class="flex items-start justify-between mb-12">
+      <div class="flex items-center gap-3">
+        <img src="{{ logo_url }}" alt="qtradesedu" class="w-14 h-14 object-contain" />
+        <div class="flex flex-col leading-none">
+          <span class="text-2xl font-bold tracking-tight">qtrades</span>
+          <span class="text-2xl font-bold tracking-tight font-serif italic text-teal-300 -mt-0.5">edu</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10">
+        <div class="w-1.5 h-1.5 rounded-full bg-teal-400 pulse-dot"></div>
+        <span class="text-[10px] font-mono text-white/70 tracking-[0.18em] uppercase font-semibold">{{ eyebrow_meta | default("Live") }}</span>
+      </div>
+    </header>
+
+    {# Eyebrow + topic #}
+    <div class="flex items-center gap-3 mb-6">
+      <span class="block w-8 h-px bg-teal-400/60"></span>
+      <span class="text-[11px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold">{{ eyebrow | default("Forex News") }}</span>
+    </div>
+
+    {# Hero number + label (foreground) #}
+    {% if big_number_label %}
+    <p class="text-[14px] font-mono uppercase tracking-[0.22em] text-white/40 font-semibold mb-3">{{ big_number_label }}</p>
+    {% endif %}
+
+    {% if big_number %}
+    <div class="font-bold leading-[0.9] tracking-[-0.04em] {{ 'text-teal-300' if not (big_number.startswith('-') or '↓' in big_number) else 'text-rose-400' }} text-[180px] mb-4">
+      {{ big_number }}
+    </div>
+    {% endif %}
+
+    {% if big_number_caption %}
+    <p class="text-[24px] text-white/85 leading-snug mb-8 max-w-[880px]">{{ big_number_caption }}</p>
+    {% endif %}
+
+    {# Headline as smaller secondary #}
+    {% if headline %}
+    <h2 class="font-bold leading-[1.05] tracking-tight mb-6 text-[44px] text-white/80 max-w-[920px]">
+      {{ headline_html | safe }}
+    </h2>
+    {% endif %}
+
+    {# Stats grid #}
+    {% if stats %}
+    <div class="grid {{ 'grid-cols-' + stats|length|string if stats|length <= 4 else 'grid-cols-4' }} gap-3 mb-6">
+      {% for s in stats %}
+      <div class="card-elevated rounded-xl p-4">
+        <div class="text-[10px] font-mono text-white/40 tracking-[0.22em] uppercase font-semibold mb-1.5">{{ s.label }}</div>
+        <div class="text-[24px] font-mono font-semibold tracking-tight">{{ s.value }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Insight #}
+    {% if insight %}
+    <div class="rounded-xl p-5 bg-gradient-to-br from-teal-500/10 via-teal-500/5 to-transparent border-l-2 border-teal-400 mb-4">
+      <div class="text-[10px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold mb-1.5">{{ insight.label }}</div>
+      <p class="text-[18px] leading-snug text-white/90">{{ insight.body }}</p>
+    </div>
+    {% endif %}
+
+    {# Footer #}
+    <footer class="mt-auto pt-6 flex items-end justify-between border-t border-white/5">
+      <div class="flex flex-col gap-0.5">
+        <span class="font-mono text-[15px] font-semibold tracking-wider text-white/85">{{ handle }}</span>
+        <span class="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase">save · share · follow</span>
+      </div>
+      <span class="font-serif italic text-[14px] text-white/40 text-right max-w-[280px] leading-snug">
+        Educational forex insights<br/>untuk trader Indonesia
+      </span>
+    </footer>
+
+  </div>
+</body>
+{% endblock %}

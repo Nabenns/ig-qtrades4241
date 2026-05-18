@@ -1,0 +1,119 @@
+{% extends "_base.html" %}
+{% block body %}
+<body class="w-[1080px] h-[1920px] relative overflow-hidden bg-mesh text-[#eaf6f3]">
+  <div class="accent-strip"></div>
+
+  {# Decorative chart silhouette in background #}
+  <svg class="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none" viewBox="0 0 1080 1920" preserveAspectRatio="xMidYMid slice">
+    <path d="M0,1400 L60,1300 L120,1340 L180,1200 L240,1280 L300,1100 L360,1180 L420,1020 L480,1100 L540,940 L600,1020 L660,860 L720,940 L780,780 L840,860 L900,700 L960,780 L1020,640 L1080,720" stroke="#5eead4" stroke-width="3" fill="none"/>
+    <defs>
+      <linearGradient id="chartGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#5eead4;stop-opacity:0.25"/>
+        <stop offset="100%" style="stop-color:#5eead4;stop-opacity:0"/>
+      </linearGradient>
+    </defs>
+    <path d="M0,1400 L60,1300 L120,1340 L180,1200 L240,1280 L300,1100 L360,1180 L420,1020 L480,1100 L540,940 L600,1020 L660,860 L720,940 L780,780 L840,860 L900,700 L960,780 L1020,640 L1080,720 L1080,1920 L0,1920 Z" fill="url(#chartGrad2)"/>
+  </svg>
+
+  <div class="relative z-10 h-full w-full flex flex-col px-16 py-20">
+
+    {# Header #}
+    <header class="flex items-start justify-between mb-10">
+      <div class="flex items-center gap-3">
+        <img src="{{ logo_url }}" alt="qtradesedu" class="w-14 h-14 object-contain" />
+        <div class="flex flex-col leading-none">
+          <span class="text-2xl font-bold tracking-tight">qtrades</span>
+          <span class="text-2xl font-bold tracking-tight font-serif italic text-teal-300 -mt-0.5">edu</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10">
+        <div class="w-1.5 h-1.5 rounded-full bg-teal-400 pulse-dot"></div>
+        <span class="text-[10px] font-mono text-white/70 tracking-[0.18em] uppercase font-semibold">{{ eyebrow_meta | default("Today") }}</span>
+      </div>
+    </header>
+
+    {# Eyebrow #}
+    <div class="flex items-center gap-3 mb-6">
+      <span class="block w-8 h-px bg-teal-400/60"></span>
+      <span class="text-[11px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold">{{ eyebrow | default("Macro Watch") }}</span>
+    </div>
+
+    {# Headline #}
+    <h1 class="font-bold leading-[0.95] tracking-tight mb-5 text-[100px]">
+      {{ headline_html | safe }}
+    </h1>
+
+    {% if subheadline %}
+    <p class="text-[24px] text-white/60 leading-relaxed font-light max-w-[920px] mb-10">
+      {{ subheadline }}
+    </p>
+    {% endif %}
+
+    {# Big number block (if present) #}
+    {% if big_number %}
+    <div class="card-elevated rounded-2xl p-8 mb-6">
+      <div class="flex items-baseline gap-5">
+        <span class="font-bold leading-none tracking-[-0.04em] {{ 'text-rose-400' if big_number.startswith('-') or '↓' in big_number else 'text-teal-300' }} text-[140px]">
+          {{ big_number }}
+        </span>
+        {% if big_number_label %}
+        <div class="flex flex-col pb-2">
+          <span class="text-[12px] font-mono uppercase tracking-[0.22em] text-white/40 font-semibold mb-1">{{ big_number_label }}</span>
+          {% if big_number_caption %}
+          <span class="text-[20px] text-white/85 leading-snug max-w-[400px]">{{ big_number_caption }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Quote block #}
+    {% if quote %}
+    <div class="card-elevated rounded-2xl p-8 relative mb-6">
+      <span class="absolute -top-2.5 left-7 px-2.5 py-0.5 bg-[#06100E] text-teal-300 text-[10px] font-mono tracking-[0.22em] uppercase font-semibold">Quote</span>
+      <p class="font-serif italic text-[32px] leading-snug mb-5 text-white/90">"{{ quote.text }}"</p>
+      <div class="flex items-center gap-3 pt-4 border-t border-white/5">
+        <div class="w-1 h-9 bg-gradient-to-b from-teal-300 to-cyan-500"></div>
+        <div>
+          <div class="text-[18px] font-semibold">{{ quote.attribution }}</div>
+          {% if quote.role %}<div class="text-[14px] text-white/50 font-mono mt-0.5">{{ quote.role }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Stats grid #}
+    {% if stats %}
+    <div class="grid {{ 'grid-cols-' + stats|length|string if stats|length <= 4 else 'grid-cols-4' }} gap-4 mb-6">
+      {% for s in stats %}
+      <div class="card-elevated rounded-xl p-5">
+        <div class="text-[11px] font-mono text-white/40 tracking-[0.22em] uppercase font-semibold mb-2">{{ s.label }}</div>
+        <div class="text-[32px] font-mono font-semibold tracking-tight">{{ s.value }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Insight block (most prominent — usually last) #}
+    {% if insight %}
+    <div class="rounded-2xl p-7 bg-gradient-to-br from-teal-500/15 via-teal-500/5 to-transparent border-l-4 border-teal-400 mb-4">
+      <div class="text-[12px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold mb-3">{{ insight.label }}</div>
+      <p class="text-[24px] leading-relaxed text-white">{{ insight.body }}</p>
+    </div>
+    {% endif %}
+
+    {# Footer #}
+    <footer class="mt-auto pt-6 flex items-end justify-between border-t border-white/5">
+      <div class="flex flex-col gap-0.5">
+        <span class="font-mono text-[15px] font-semibold tracking-wider text-white/85">{{ handle }}</span>
+        <span class="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase">save · share · follow</span>
+      </div>
+      <span class="font-serif italic text-[14px] text-white/40 text-right max-w-[280px] leading-snug">
+        Educational forex insights<br/>untuk trader Indonesia
+      </span>
+    </footer>
+
+  </div>
+</body>
+{% endblock %}
