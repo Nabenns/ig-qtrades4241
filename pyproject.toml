@@ -58,7 +58,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["build/", "dist/"]
 
 [[tool.mypy.overrides]]
-module = ["instagrapi.*", "mplfinance.*", "yfinance.*", "bs4.*"]
+module = ["instagrapi.*", "mplfinance.*", "yfinance.*", "bs4.*", "apscheduler.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

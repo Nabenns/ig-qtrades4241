@@ -11,6 +11,7 @@ from ig_qt.app import (
     run_check,
     run_collect_once,
     run_compose_once,
+    run_long_running,
 )
 
 
@@ -25,6 +26,7 @@ def main() -> int:
     sub.add_parser("collect", help="Run collector once")
     sub.add_parser("analyze", help="Run analyst once")
     sub.add_parser("compose", help="Run composer once")
+    sub.add_parser("run", help="Run scheduler (long-running)")
     args = parser.parse_args()
 
     if args.check or args.cmd == "check":
@@ -35,7 +37,9 @@ def main() -> int:
         return asyncio.run(run_analyze_once(config_path=args.config))
     if args.cmd == "compose":
         return asyncio.run(run_compose_once(config_path=args.config))
-    print("ig_qt: scheduler entry point not implemented yet (M5)")
+    if args.cmd == "run":
+        return asyncio.run(run_long_running(config_path=args.config))
+    print("ig_qt: pick a subcommand: check | collect | analyze | compose | run")
     return 0
 
 

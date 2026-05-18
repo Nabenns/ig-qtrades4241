@@ -1,6 +1,7 @@
 """Application bootstrap."""
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -117,7 +118,139 @@ async def run_compose_once(*, config_path: Path) -> int:
         scheduled_for_factory=_sched_for,
     )
     summary = await runner.run_once()
-    logger.info(
-        "compose_done processed={} failed={}", summary.processed, summary.failed
-    )
+    logger.info("compose_done processed={} failed={}", summary.processed, summary.failed)
     return 0 if summary.failed == 0 else 1
+
+
+async def run_long_running(*, config_path: Path) -> int:
+    """Long-running orchestrator: APScheduler + handlers wired together."""
+    from ig_qt.analyst.runner import AnalystRunner
+    from ig_qt.collector.pipeline import build_pipeline_from_config
+    from ig_qt.composer.runner import ComposerRunner
+    from ig_qt.models import PostDraft
+    from ig_qt.publisher.ig_client import IGClient
+    from ig_qt.publisher.rate_limiter import offset_hours_for_timezone
+    from ig_qt.publisher.runner import PublisherRunner
+    from ig_qt.scheduler import attach_jobs, build_scheduler
+    from ig_qt.stories_runtime import (
+        generate_event_reminder_story,
+        generate_market_recap_story,
+    )
+
+    cfg = load_config(config_path)
+    log_dir = cfg.paths.data_dir / "logs"
+    configure_logging(log_dir=log_dir, level="INFO", json_logs=True)
+    engine = build_engine(cfg.paths.data_dir / "ig_qt.db")
+    init_schema(engine)
+    notifier = build_notifier(
+        enabled=cfg.notifier.telegram_enabled,
+        bot_token=(
+            cfg.notifier.telegram_bot_token.get_secret_value()
+            if cfg.notifier.telegram_bot_token
+            else None
+        ),
+        chat_id=cfg.notifier.telegram_chat_id,
+    )
+
+    provider = build_llm_provider(cfg.llm)
+    analyst = AnalystRunner(
+        engine=engine,
+        provider=provider,
+        ranker_model=cfg.llm.ranker_model,
+        composer_model=cfg.llm.composer_model,
+    )
+
+    feed_hour = cfg.schedule.feed_post_hour
+
+    def _sched_for(d: PostDraft) -> datetime:
+        now = datetime.now(UTC)
+        if d.post_type == "feed":
+            return now.replace(hour=feed_hour, minute=0, second=0, microsecond=0)
+        return now + timedelta(minutes=30)
+
+    composer = ComposerRunner(
+        engine=engine,
+        data_dir=cfg.paths.data_dir,
+        logo_path=Path(cfg.brand.logo_path),
+        handle=cfg.brand.handle,
+        scheduled_for_factory=_sched_for,
+    )
+    ig_client = IGClient(
+        session_path=cfg.paths.data_dir / "ig_session.json",
+        username=cfg.ig.username,
+        password=cfg.ig.password.get_secret_value(),
+        delay_range=cfg.ig.delay_range_seconds,
+    )
+    publisher = PublisherRunner(
+        engine=engine,
+        client=ig_client,
+        notifier=notifier,
+        pause_file=cfg.paths.data_dir / "PAUSE",
+        max_feed_per_day=cfg.ig.max_feed_per_day,
+        max_feed_per_week=cfg.ig.max_feed_per_week,
+        max_story_per_day=cfg.ig.max_story_per_day,
+        posting_window_start_hour=cfg.schedule.posting_window_start_hour,
+        posting_window_end_hour=cfg.schedule.posting_window_end_hour,
+        tz_offset_hours=offset_hours_for_timezone(cfg.schedule.timezone),
+        skip_day_seed=cfg.ig.username,
+        skip_day_probability=cfg.schedule.skip_day_probability,
+        warmup_seed=42,
+    )
+
+    pipeline = build_pipeline_from_config(engine, cfg)
+
+    async def collect_news() -> None:
+        await pipeline.run_once()
+
+    async def collect_calendar() -> None:
+        await pipeline.run_once()
+
+    async def analyst_job() -> None:
+        await analyst.run_once(today=datetime.now(UTC))
+
+    async def composer_job() -> None:
+        await composer.run_once()
+
+    async def publisher_job() -> None:
+        await publisher.run_due()
+
+    async def story_event_job() -> None:
+        await generate_event_reminder_story(
+            engine=engine,
+            data_dir=cfg.paths.data_dir,
+            logo_path=Path(cfg.brand.logo_path),
+            handle=cfg.brand.handle,
+            scheduled_for=datetime.now(UTC),
+        )
+
+    async def story_recap_job() -> None:
+        await generate_market_recap_story(
+            engine=engine,
+            data_dir=cfg.paths.data_dir,
+            logo_path=Path(cfg.brand.logo_path),
+            handle=cfg.brand.handle,
+            scheduled_for=datetime.now(UTC),
+            symbols=cfg.collector.symbols,
+        )
+
+    handlers = {
+        "collect_news_morning": collect_news,
+        "collect_news_evening": collect_news,
+        "ff_calendar_weekly": collect_calendar,
+        "analyst_daily": analyst_job,
+        "composer_loop": composer_job,
+        "publisher_loop": publisher_job,
+        "story_event_reminder": story_event_job,
+        "story_market_recap": story_recap_job,
+    }
+
+    scheduler = build_scheduler(cfg=cfg, jobs_db=cfg.paths.data_dir / "jobs.db")
+    attach_jobs(scheduler, cfg=cfg, handlers=handlers)
+    scheduler.start()
+    logger.info("scheduler_started")
+
+    try:
+        await asyncio.Event().wait()
+    finally:
+        scheduler.shutdown(wait=True)
+    return 0

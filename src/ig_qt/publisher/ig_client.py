@@ -1,6 +1,7 @@
 """Thin wrapper around instagrapi with session persistence + safer error mapping."""
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -49,10 +50,8 @@ class IGClient:
 
     def _build_client(self) -> Any:
         cl = self._factory()
-        try:
+        with contextlib.suppress(AttributeError):
             cl.delay_range = list(self._delay_range)
-        except AttributeError:
-            pass
         return cl
 
     def ensure_logged_in(self) -> None:
