@@ -83,6 +83,7 @@ class CollectorConfig(BaseModel):
     twelve_data_enabled: bool
     twelve_data_key: SecretStr | None
     forex_factory_enabled: bool
+    rss_enabled: bool = True
     symbols: list[str]
 
 
@@ -176,6 +177,7 @@ def load_config(yaml_path: Path) -> AppConfig:
         twelve_data_enabled=coll_raw["twelve_data_enabled"],
         twelve_data_key=_coll_secret("twelve_data_key_env", "twelve_data_enabled"),
         forex_factory_enabled=coll_raw["forex_factory_enabled"],
+        rss_enabled=coll_raw.get("rss_enabled", True),
         symbols=list(coll_raw["symbols"]),
     )
 

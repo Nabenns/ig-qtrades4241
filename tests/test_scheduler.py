@@ -78,10 +78,9 @@ def test_build_jobs_spec_includes_all_required(
     cfg = load_config(cfg_path)
     spec = build_jobs_spec(cfg)
     job_ids = {j["id"] for j in spec}
-    assert "collect_news_morning" in job_ids
-    assert "collect_news_evening" in job_ids
+    assert "collect_news_realtime" in job_ids
     assert "ff_calendar_weekly" in job_ids
-    assert "analyst_daily" in job_ids
+    assert "analyst_realtime" in job_ids
     assert "composer_loop" in job_ids
     assert "publisher_loop" in job_ids
     assert "story_event_reminder" in job_ids

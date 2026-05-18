@@ -89,6 +89,7 @@ def build_pipeline_from_config(engine: Engine, cfg: AppConfig) -> CollectorPipel
     from ig_qt.collector.forex_factory import ForexFactorySource
     from ig_qt.collector.gnews import GNewsSource
     from ig_qt.collector.news_api import NewsAPISource
+    from ig_qt.collector.rss import RSSSource
 
     news_sources: list[_NewsSource] = []
     if cfg.collector.news_api_enabled and cfg.collector.news_api_key:
@@ -99,6 +100,8 @@ def build_pipeline_from_config(engine: Engine, cfg: AppConfig) -> CollectorPipel
         news_sources.append(
             GNewsSource(api_key=cfg.collector.gnews_key.get_secret_value())
         )
+    if cfg.collector.rss_enabled:
+        news_sources.append(RSSSource())
 
     cal_sources: list[_CalSource] = []
     if cfg.collector.forex_factory_enabled:

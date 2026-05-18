@@ -43,6 +43,7 @@ collector:
   twelve_data_enabled: true
   twelve_data_key_env: TWELVEDATA_KEY
   forex_factory_enabled: true
+  rss_enabled: true
   symbols:
     - EUR/USD
     - GBP/USD

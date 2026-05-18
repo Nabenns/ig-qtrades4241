@@ -368,10 +368,9 @@ async def run_long_running(*, config_path: Path) -> int:
         )
 
     handlers = {
-        "collect_news_morning": collect_news,
-        "collect_news_evening": collect_news,
+        "collect_news_realtime": collect_news,
         "ff_calendar_weekly": collect_calendar,
-        "analyst_daily": analyst_job,
+        "analyst_realtime": analyst_job,
         "composer_loop": composer_job,
         "publisher_loop": publisher_job,
         "story_event_reminder": story_event_job,

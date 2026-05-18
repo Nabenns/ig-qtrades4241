@@ -21,13 +21,11 @@ def build_jobs_spec(cfg: AppConfig) -> list[dict[str, Any]]:
     """
     sched = cfg.schedule
     return [
+        # News collection: every 15min for near-realtime feel.
+        # RSS feeds free, NewsAPI/GNews ~96 req/day, well within 100 limit.
         {
-            "id": "collect_news_morning",
-            "trigger": CronTrigger(hour=9, jitter=900, timezone=sched.timezone),
-        },
-        {
-            "id": "collect_news_evening",
-            "trigger": CronTrigger(hour=18, jitter=900, timezone=sched.timezone),
+            "id": "collect_news_realtime",
+            "trigger": IntervalTrigger(minutes=15, jitter=120),
         },
         {
             "id": "ff_calendar_weekly",
@@ -35,18 +33,14 @@ def build_jobs_spec(cfg: AppConfig) -> list[dict[str, Any]]:
                 day_of_week="mon", hour=7, jitter=1800, timezone=sched.timezone
             ),
         },
+        # Analyst: every 30min so new news triggers fresh drafts quickly
         {
-            "id": "analyst_daily",
-            "trigger": CronTrigger(
-                hour=sched.feed_post_hour,
-                minute=0,
-                jitter=sched.feed_post_jitter_minutes * 60,
-                timezone=sched.timezone,
-            ),
+            "id": "analyst_realtime",
+            "trigger": IntervalTrigger(minutes=30, jitter=180),
         },
         {
             "id": "composer_loop",
-            "trigger": IntervalTrigger(minutes=15),
+            "trigger": IntervalTrigger(minutes=10),
         },
         {
             "id": "publisher_loop",
