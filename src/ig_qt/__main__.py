@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from ig_qt.app import (
+    run_admin,
     run_analyze_once,
     run_check,
     run_collect_once,
@@ -27,6 +28,11 @@ def main() -> int:
     sub.add_parser("analyze", help="Run analyst once")
     sub.add_parser("compose", help="Run composer once")
     sub.add_parser("run", help="Run scheduler (long-running)")
+    admin = sub.add_parser("admin", help="Operational admin commands")
+    admin_sub = admin.add_subparsers(dest="admin_cmd")
+    admin_sub.add_parser("warmup-status", help="Show warmup state")
+    admin_sub.add_parser("warmup-enable", help="Pause publisher and start warmup window")
+    admin_sub.add_parser("warmup-disable", help="End warmup, resume publisher")
     args = parser.parse_args()
 
     if args.check or args.cmd == "check":
@@ -39,7 +45,11 @@ def main() -> int:
         return asyncio.run(run_compose_once(config_path=args.config))
     if args.cmd == "run":
         return asyncio.run(run_long_running(config_path=args.config))
-    print("ig_qt: pick a subcommand: check | collect | analyze | compose | run")
+    if args.cmd == "admin":
+        return run_admin(config_path=args.config, admin_cmd=args.admin_cmd)
+    print(
+        "ig_qt: pick a subcommand: check | collect | analyze | compose | run | admin"
+    )
     return 0
 
 

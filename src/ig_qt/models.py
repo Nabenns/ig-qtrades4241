@@ -129,6 +129,8 @@ class IGAccountState(Base):
     pause_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     daily_post_count: Mapped[int] = mapped_column(Integer, default=0)
     weekly_post_count: Mapped[int] = mapped_column(Integer, default=0)
+    warmup_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    warmup_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PostedTopic(Base):

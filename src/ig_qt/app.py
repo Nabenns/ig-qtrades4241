@@ -121,6 +121,51 @@ async def run_compose_once(*, config_path: Path) -> int:
     return 0 if summary.failed == 0 else 1
 
 
+def run_admin(*, config_path: Path, admin_cmd: str | None) -> int:
+    """Operational admin commands: warmup-status, warmup-enable, warmup-disable."""
+    from sqlalchemy import select
+
+    from ig_qt.admin.warmup_mode import (
+        assess_readiness,
+        disable_warmup,
+        enable_warmup,
+    )
+    from ig_qt.db import session_scope as _ss
+    from ig_qt.models import IGAccountState
+
+    cfg = load_config(config_path)
+    configure_logging(log_dir=cfg.paths.data_dir / "logs", level="INFO", json_logs=False)
+    engine = build_engine(cfg.paths.data_dir / "ig_qt.db")
+    init_schema(engine)
+
+    if admin_cmd == "warmup-enable":
+        enable_warmup(engine)
+        print("Warmup enabled. Publisher will skip until you run warmup-disable.")
+        return 0
+    if admin_cmd == "warmup-disable":
+        disable_warmup(engine)
+        print("Warmup disabled. Publisher will resume on next tick.")
+        return 0
+    if admin_cmd == "warmup-status":
+        with _ss(engine) as s:
+            state = s.execute(select(IGAccountState).limit(1)).scalar_one_or_none()
+            if state is None:
+                print("No account state row yet — run --check or any pipeline first.")
+                return 1
+            status = assess_readiness(state, now=datetime.now(UTC))
+        print(f"warmup_active:    {status.warmup_active}")
+        print(f"warmup_started:   {status.warmup_started_at}")
+        print(f"days_in_warmup:   {status.days_in_warmup}")
+        print(f"last_post_at:     {status.last_post_at}")
+        if status.warmup_active and status.days_in_warmup >= 14:
+            print("Recommend running: admin warmup-disable")
+        elif status.warmup_active:
+            print(f"Continue warmup ({14 - status.days_in_warmup} days remaining)")
+        return 0
+    print("Unknown admin command. Try: warmup-status, warmup-enable, warmup-disable")
+    return 2
+
+
 async def run_long_running(*, config_path: Path) -> int:
     """Long-running orchestrator: APScheduler + /health endpoint together."""
     import uvicorn

@@ -91,6 +91,12 @@ class PublisherRunner:
             return PublishResult(0, 0, "outside_window")
 
         with session_scope(self._engine) as s:
+            warmup_state = s.execute(select(IGAccountState).limit(1)).scalar_one_or_none()
+            if warmup_state is not None and warmup_state.warmup_active:
+                logger.info("publisher_skipped reason=warmup_active")
+                return PublishResult(0, 0, "warmup_active")
+
+        with session_scope(self._engine) as s:
             posts = list(
                 s.execute(
                     select(Post)
