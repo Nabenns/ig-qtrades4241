@@ -92,6 +92,13 @@ class NotifierConfig(BaseModel):
     telegram_chat_id: str | None
 
 
+class ImageGenConfig(BaseModel):
+    enabled: bool
+    provider: str = "cloudflare"
+    account_id: str | None
+    api_token: SecretStr | None
+
+
 class PathsConfig(BaseModel):
     data_dir: Path
 
@@ -105,6 +112,7 @@ class AppConfig(BaseModel):
     ig: IGConfig
     collector: CollectorConfig
     notifier: NotifierConfig
+    image_gen: ImageGenConfig
     paths: PathsConfig
 
 
@@ -181,6 +189,21 @@ def load_config(yaml_path: Path) -> AppConfig:
             telegram_enabled=False, telegram_bot_token=None, telegram_chat_id=None
         )
 
+    img_raw = raw.get("image_gen", {})
+    if img_raw.get("enabled"):
+        account_id = _optional_env(img_raw["account_id_env"])
+        token_val = _optional_env(img_raw["api_token_env"])
+        image_gen = ImageGenConfig(
+            enabled=True,
+            provider=img_raw.get("provider", "cloudflare"),
+            account_id=account_id,
+            api_token=SecretStr(token_val) if token_val else None,
+        )
+    else:
+        image_gen = ImageGenConfig(
+            enabled=False, provider="cloudflare", account_id=None, api_token=None
+        )
+
     paths_raw = raw["paths"]
     data_dir = Path(
         os.environ.get(paths_raw["data_dir_env"], paths_raw["data_dir_default"])
@@ -193,5 +216,6 @@ def load_config(yaml_path: Path) -> AppConfig:
         ig=ig,
         collector=collector,
         notifier=notifier,
+        image_gen=image_gen,
         paths=PathsConfig(data_dir=data_dir),
     )

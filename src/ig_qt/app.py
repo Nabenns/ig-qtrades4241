@@ -92,6 +92,7 @@ async def run_analyze_once(*, config_path: Path) -> int:
 
 async def run_compose_once(*, config_path: Path) -> int:
     """One-shot composer run: process pending drafts into ready posts."""
+    from ig_qt.composer.image_gen import build_image_gen
     from ig_qt.composer.runner import ComposerRunner
     from ig_qt.models import PostDraft
 
@@ -109,12 +110,22 @@ async def run_compose_once(*, config_path: Path) -> int:
             return now.replace(hour=feed_hour, minute=0, second=0, microsecond=0)
         return now + timedelta(minutes=30)
 
+    image_gen = build_image_gen(
+        enabled=cfg.image_gen.enabled,
+        account_id=cfg.image_gen.account_id,
+        api_token=(
+            cfg.image_gen.api_token.get_secret_value()
+            if cfg.image_gen.api_token
+            else None
+        ),
+    )
     runner = ComposerRunner(
         engine=engine,
         data_dir=cfg.paths.data_dir,
         logo_path=Path(cfg.brand.logo_path),
         handle=cfg.brand.handle,
         scheduled_for_factory=_sched_for,
+        image_gen=image_gen,
     )
     summary = await runner.run_once()
     logger.info("compose_done processed={} failed={}", summary.processed, summary.failed)
@@ -173,6 +184,7 @@ async def run_long_running(*, config_path: Path) -> int:
     from ig_qt import __version__
     from ig_qt.analyst.runner import AnalystRunner
     from ig_qt.collector.pipeline import build_pipeline_from_config
+    from ig_qt.composer.image_gen import build_image_gen
     from ig_qt.composer.runner import ComposerRunner
     from ig_qt.health import build_health_app
     from ig_qt.models import PostDraft
@@ -216,12 +228,22 @@ async def run_long_running(*, config_path: Path) -> int:
             return now.replace(hour=feed_hour, minute=0, second=0, microsecond=0)
         return now + timedelta(minutes=30)
 
+    image_gen = build_image_gen(
+        enabled=cfg.image_gen.enabled,
+        account_id=cfg.image_gen.account_id,
+        api_token=(
+            cfg.image_gen.api_token.get_secret_value()
+            if cfg.image_gen.api_token
+            else None
+        ),
+    )
     composer = ComposerRunner(
         engine=engine,
         data_dir=cfg.paths.data_dir,
         logo_path=Path(cfg.brand.logo_path),
         handle=cfg.brand.handle,
         scheduled_for_factory=_sched_for,
+        image_gen=image_gen,
     )
     ig_client = IGClient(
         session_path=cfg.paths.data_dir / "ig_session.json",

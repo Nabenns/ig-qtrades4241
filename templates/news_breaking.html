@@ -1,0 +1,71 @@
+{% extends "_base.html" %}
+{% block body %}
+<body class="{{ 'w-[1080px] h-[1920px]' if orientation == 'story' else 'w-[1080px] h-[1350px]' }} relative overflow-hidden bg-[#000000] text-white">
+  {# Hero image as full-bleed background #}
+  {% if hero_image_url %}
+  <img src="{{ hero_image_url }}" alt="" class="absolute inset-0 w-full h-full object-cover" />
+  {% endif %}
+
+  {# Dark gradient overlay so headline pops #}
+  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/30"></div>
+
+  {# Subtle vignette #}
+  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.5)_100%)]"></div>
+
+  <div class="relative z-10 h-full w-full flex flex-col px-12 py-12">
+
+    {# Logo top-left, small + minimal #}
+    <header class="flex items-center justify-between mb-auto">
+      <div class="flex items-center gap-2">
+        <img src="{{ logo_url }}" alt="qtradesedu" class="w-9 h-9 object-contain" />
+        <span class="text-base font-bold tracking-tight text-white">qtradesedu</span>
+        <span class="w-2 h-2 bg-teal-400 rounded-sm ml-1"></span>
+      </div>
+      {% if eyebrow_meta %}
+      <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/15 backdrop-blur-sm">
+        <div class="w-1.5 h-1.5 rounded-full bg-rose-400 pulse-dot"></div>
+        <span class="text-[10px] font-mono text-white tracking-[0.18em] uppercase font-semibold">{{ eyebrow_meta }}</span>
+      </div>
+      {% endif %}
+    </header>
+
+    {# Headline at bottom, big + bold all-caps with colored highlight phrase #}
+    <div class="mt-auto">
+      {% if eyebrow %}
+      <div class="flex items-center gap-3 mb-5">
+        <span class="block w-8 h-px bg-teal-400/80"></span>
+        <span class="text-[11px] font-mono text-teal-300 tracking-[0.25em] uppercase font-semibold">{{ eyebrow }}</span>
+      </div>
+      {% endif %}
+
+      <h1 class="font-black uppercase leading-[0.92] tracking-[-0.02em] mb-4 {{ 'text-[88px]' if orientation == 'story' else 'text-[72px]' }}">
+        {{ headline_html | safe }}
+      </h1>
+
+      {% if subheadline %}
+      <p class="text-[20px] text-white/75 leading-snug font-light max-w-[920px] mb-6">
+        {{ subheadline }}
+      </p>
+      {% endif %}
+
+      {# Optional stats overlay strip at footer #}
+      {% if stats %}
+      <div class="grid {{ 'grid-cols-' + stats|length|string if stats|length <= 4 else 'grid-cols-4' }} gap-3 mt-6 mb-4">
+        {% for s in stats %}
+        <div class="px-4 py-3 bg-black/50 backdrop-blur-sm border border-white/10 rounded-lg">
+          <div class="text-[9px] font-mono text-white/50 tracking-[0.22em] uppercase font-semibold mb-1">{{ s.label }}</div>
+          <div class="text-[20px] font-mono font-semibold tracking-tight text-white">{{ s.value }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="flex items-end justify-between pt-5 border-t border-white/15">
+        <span class="font-mono text-[14px] font-semibold tracking-wider text-white/85">{{ handle }}</span>
+        <span class="text-[10px] font-mono text-white/50 tracking-[0.22em] uppercase">save · share · follow</span>
+      </div>
+    </div>
+
+  </div>
+</body>
+{% endblock %}

@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 from ig_qt.analyst.schemas import VisualSpec
 from ig_qt.composer.caption import finalize_caption, pick_opener
 from ig_qt.composer.chart_renderer import render_chart_png
-from ig_qt.composer.html_renderer import render_card
+from ig_qt.composer.html_renderer import build_headline_html, render_card
+from ig_qt.composer.image_gen import CloudflareImageGen, ImageGenError
 from ig_qt.composer.pillow_fallback import render_text_card
 from ig_qt.composer.postprocess import finalize_feed_image, finalize_story_image
 from ig_qt.db import session_scope
@@ -55,6 +56,7 @@ class ComposerRunner:
         scheduled_for_factory: Callable[[PostDraft], Any],
         hashtags: tuple[str, ...] = _DEFAULT_HASHTAGS,
         cta: str = _DEFAULT_CTA,
+        image_gen: CloudflareImageGen | None = None,
     ) -> None:
         self._engine = engine
         self._data_dir = data_dir
@@ -63,6 +65,7 @@ class ComposerRunner:
         self._sched = scheduled_for_factory
         self._hashtags = hashtags
         self._cta = cta
+        self._image_gen = image_gen
 
     def _latest_prices(self, session: Session) -> dict[str, list[dict[str, Any]]]:
         rows = list(session.execute(select(PriceCache)).scalars())
@@ -81,6 +84,23 @@ class ComposerRunner:
             if ohlc:
                 out[sym] = float(ohlc[-1]["close"])
         return out
+
+    async def _maybe_generate_hero(
+        self, spec: VisualSpec, out_dir: Path
+    ) -> Path | None:
+        """Generate AI hero image if image_gen is enabled and prompt is provided."""
+        if self._image_gen is None or not spec.hero_image_prompt:
+            return None
+        hero_path = out_dir / "hero.png"
+        if hero_path.exists():
+            return hero_path
+        try:
+            return await self._image_gen.generate(
+                prompt=spec.hero_image_prompt, out_path=hero_path
+            )
+        except ImageGenError as exc:
+            logger.warning("hero_image_failed err={}", exc)
+            return None
 
     async def _render_visual(
         self,
@@ -109,9 +129,15 @@ class ComposerRunner:
             except Exception as exc:
                 logger.warning("chart_render_failed fallback_to_headline error={}", exc)
 
-        # Build rich context covering all VisualSpec fields for new templates
+        # Build rich context for new templates
+        headline_html = build_headline_html(
+            headline=spec.headline,
+            highlight_phrase=spec.highlight_phrase,
+            highlight_color=spec.highlight_color,
+        )
         context: dict[str, Any] = {
             "headline": spec.headline,
+            "headline_html": headline_html,
             "subheadline": spec.subheadline,
             "summary": " · ".join(spec.annotations[:3]) or "",
             "label": "Forex News",
@@ -127,7 +153,25 @@ class ComposerRunner:
             "insight": spec.insight.model_dump() if spec.insight else None,
         }
 
-        if spec.type in ("chart", "headline", "big_number", "panel"):
+        # Try to generate AI hero image (Cloudflare) — only when prompt exists
+        hero_path = await self._maybe_generate_hero(spec, out_dir)
+
+        # Pick template based on visual_spec.type
+        # `news_hero` is the CW-style cinematic layout requiring a hero image
+        if spec.type == "news_hero" and hero_path is not None:
+            try:
+                await render_card(
+                    template="news_breaking.html",
+                    context=context,
+                    out_path=raw_path,
+                    viewport=viewport,
+                    hero_image_path=hero_path,
+                )
+                return raw_path
+            except Exception as exc:
+                logger.warning("news_hero_render_failed fallback err={}", exc)
+
+        if spec.type in ("chart", "headline", "big_number", "panel", "news_hero"):
             try:
                 await render_card(
                     template="headline_card.html",

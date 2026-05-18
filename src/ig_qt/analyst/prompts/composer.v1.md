@@ -12,23 +12,42 @@ Caption rules:
 - All numbers must come from the provided prices/events. Do NOT invent figures. If a number isn't provided, omit it.
 
 Visual rules — design system supports rich layouts. Choose the right `type` based on content:
-- `big_number`: USE THIS FOR FEED when there's ONE central number worth highlighting (price level, rate %, change %, key economic figure). Set `big_number` (the number, e.g. "158.42", "5.50%", "+3.2%"), `big_number_label` (what it represents, e.g. "USD/JPY", "Fed Rate", "Oil"), and `big_number_caption` (1-line context, e.g. "Highest since 1990").
-- `panel`: USE THIS FOR STORY — multi-section infographic style. Combine with `stats` (3-4 mini stats), `insight` block (key takeaway), and optionally `quote` (if news quotes an analyst).
-- `event`: ONLY for event reminder cards (caller-driven, you usually won't pick this).
-- `recap`: ONLY for daily market recap cards (caller-driven).
-- `headline`: fallback when no compelling number/data — pure headline + summary card.
-- `chart`: when a real candlestick chart of a specific pair/timeframe with annotations would tell the story best (requires `symbol` + `timeframe`).
+- `news_hero`: USE THIS FOR FEED breaking news / dramatic events. Cinematic photo-style hero image full-bleed background + ALL CAPS headline overlay with highlighted key phrase. Requires `hero_image_prompt`. Best for: news shocks, major economic events, crypto moves, geopolitics. (CW Coinwatch style)
+- `big_number`: When there's ONE central number worth highlighting (price level, rate %, change %). Set `big_number`, `big_number_label`, `big_number_caption`. NO hero image needed.
+- `panel`: Multi-section infographic for STORY (vertical 1080x1920). Combine `stats` + `insight` + optionally `quote`. NO hero image needed.
+- `event`/`recap`: Caller-driven, you usually won't pick these.
+- `headline`: Fallback when no compelling visual hook works.
+
+Headline highlight (CW-style, optional but RECOMMENDED for `news_hero`):
+- `highlight_phrase`: Substring of the headline (1-4 words) to color-emphasize. Pick the IMPACT word: e.g. "TURUN LAGI", "HIKE LAGI", "ANJLOK", "REBOUND", "FRAUD", "RECORD HIGH".
+- `highlight_color`: Pick semantic color matching sentiment:
+  - `green`: positive (rally, gain, surge, breakout up, bullish)
+  - `red`: negative (drop, fall, crash, fraud, hike, hawkish bad news)
+  - `amber`: caution / warning (volatility, mixed signal)
+  - `teal`: neutral / analytical (data, education, level)
+
+Hero image prompt (only when `type=news_hero`):
+- 30-80 words English description of a CINEMATIC scene that visually represents the topic
+- Style: photorealistic, dramatic lighting, dark moody atmosphere, 4k quality
+- NO text, NO watermark, NO logo in the image (added separately)
+- Examples for forex/finance topics:
+  - Fed rate hike → "powerful Federal Reserve eagle statue, golden afternoon light through marble columns, dramatic shadow, dark moody, cinematic"
+  - Bitcoin crash → "single bitcoin coin shattering apart in dramatic dark space with red lightning, photorealistic, cinematic"
+  - Dollar strength → "stack of US 100 dollar bills with rising green chart lines glowing behind, dramatic studio lighting, dark background"
+  - Trade tensions → "two opposing flags meeting in misty dark hall, dramatic lighting, cinematic, conflict atmosphere"
+  - Gold surge → "single gold bar floating in dark space with golden particles, dramatic side-lighting, cinematic"
+- Subject must be ONE FOCAL POINT, dramatic, cinematic — not a flat infographic.
 
 Always populate (when relevant):
-- `headline`: 4-12 words, punchy, can use *italic* with `<em>...</em>` for emphasis on KEY phrase
+- `headline`: 4-12 words for `news_hero` use ALL CAPS PUNCHY phrasing. For other types regular case.
 - `subheadline`: 1 sentence elaborating headline (8-20 words)
-- `stats`: 3-4 mini stats relevant to the post (e.g. {"label": "USD/JPY", "value": "158.42"}, {"label": "Change", "value": "+0.85%"}). Use only data from provided context.
-- `insight`: WHY THIS MATTERS or WHAT TO WATCH block. `label` is uppercase short ("WHY THIS MATTERS", "WHAT TO WATCH", "KEY LEVELS"), `body` is 1-2 sentences.
-- `quote`: ONLY if the news directly quotes an analyst/official. Provide `text` (verbatim or close paraphrase ≤200 chars), `attribution` (name), `role` (their position/firm).
+- `stats`: 3-4 mini stats relevant to the post. Use only data from provided context.
+- `insight`: WHY THIS MATTERS or WHAT TO WATCH block.
+- `quote`: ONLY if the news directly quotes an analyst/official.
 
 Return strictly valid JSON matching the schema. No markdown fences.
 
-Schema (all string fields, all optional except headline/type/post_type/topic_tag/key_points/caption_draft):
+Schema:
 ```
 {
   "post_type": "feed" | "story",
@@ -37,12 +56,15 @@ Schema (all string fields, all optional except headline/type/post_type/topic_tag
   "key_points": ["3-5 bullet points"],
   "caption_draft": "...",
   "visual_spec": {
-    "type": "big_number" | "panel" | "headline" | "chart" | "event" | "recap",
+    "type": "news_hero" | "big_number" | "panel" | "headline" | "chart" | "event" | "recap",
     "symbol": "EUR/USD" | null,
     "timeframe": "1h" | "4H" | "1D" | null,
     "annotations": ["short labels for chart S/R lines"],
-    "headline": "punchy headline (use <em>italic</em> for emphasis)",
+    "headline": "PUNCHY HEADLINE WITH KEY IMPACT WORDS",
     "subheadline": "1 sentence elaboration",
+    "highlight_phrase": "TURUN LAGI" | null,
+    "highlight_color": "green" | "red" | "amber" | "teal" | null,
+    "hero_image_prompt": "cinematic photo description for AI image gen" | null,
     "big_number": "158.42" | null,
     "big_number_label": "USD/JPY" | null,
     "big_number_caption": "Highest since 1990" | null,
@@ -55,8 +77,10 @@ Schema (all string fields, all optional except headline/type/post_type/topic_tag
 }
 ```
 
+Style preference: For FEED posts, prefer `news_hero` (most engaging). For STORY posts, prefer `panel` (infographic-style).
+
 `confidence`:
-- 0.9+ : strong news with clear angle, supporting price data, AND a compelling visual hook (big number / quote / clear stats)
+- 0.9+ : strong news, dramatic visual hook, AND ALL key fields populated (highlight, hero prompt, stats)
 - 0.7-0.9 : decent news with reasonable angle and 2-3 visual elements
 - 0.5-0.7 : weak source data, generic angle, falls back to headline-only
 - below 0.5 : reject — caller will fall back to evergreen

@@ -45,7 +45,7 @@ class InsightBlock(BaseModel):
 class VisualSpec(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    type: Literal["chart", "headline", "event", "recap", "big_number", "panel"]
+    type: Literal["chart", "headline", "event", "recap", "big_number", "panel", "news_hero"]
     symbol: str | None = None
     timeframe: Literal["15m", "1h", "4H", "1D"] | None = None
     annotations: list[str] = Field(default_factory=list)
@@ -65,6 +65,12 @@ class VisualSpec(BaseModel):
 
     # Optional insight highlight ("WHY THIS MATTERS" / "WHAT TO WATCH")
     insight: InsightBlock | None = None
+
+    # Hero image generation prompt (for AI-generated dramatic background)
+    hero_image_prompt: str | None = Field(default=None, max_length=400)
+    # Highlight phrase + color (CW-style: phrase di-color contrast di headline)
+    highlight_phrase: str | None = Field(default=None, max_length=80)
+    highlight_color: Literal["green", "red", "amber", "teal"] | None = None
 
     @field_validator("annotations", mode="before")
     @classmethod
