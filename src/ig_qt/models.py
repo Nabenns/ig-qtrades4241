@@ -136,3 +136,18 @@ class PostedTopic(Base):
 
     topic_tag: Mapped[str] = mapped_column(String(128), primary_key=True)
     last_posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class EvergreenDraft(Base):
+    __tablename__ = "evergreen_drafts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    topic_tag: Mapped[str] = mapped_column(String(128), index=True)
+    angle: Mapped[str] = mapped_column(Text)
+    key_points: Mapped[list[Any]] = mapped_column(JSON)
+    caption_draft: Mapped[str] = mapped_column(Text)
+    visual_spec: Mapped[dict[str, Any]] = mapped_column(JSON)
+    disclaimer_required: Mapped[bool] = mapped_column(Boolean, default=True)
+    used_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
