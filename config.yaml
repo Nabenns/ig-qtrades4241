@@ -1,9 +1,9 @@
 # Non-secret config. Secrets live in .env.
 brand:
-  primary: "#0a84ff"
-  accent: "#ffb020"
-  font: "Inter"
-  handle: "@your_handle_here"
+  primary: "#2dd4bf"        # logo teal-cyan accent
+  accent: "#0d9488"         # deeper teal for gradient end
+  font: "Plus Jakarta Sans"
+  handle: "@qtradesedu"
   logo_path: "assets/logo.png"
 
 llm:

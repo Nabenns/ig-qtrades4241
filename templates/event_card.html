@@ -5,21 +5,40 @@
 <style>{{ base_css }}</style>
 </head>
 <body class="{{ orientation }}">
-<div class="brand-strip"></div>
-<span class="label-pill">Event Hari Ini</span>
-<h1 class="headline">{{ headline }}</h1>
-{% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
-<div class="event-grid">
-{% for ev in events %}
-  <div class="event-card {{ ev.impact }}">
-    <div class="event-time">{{ ev.time }} WIB · {{ ev.currency }}</div>
-    <div class="event-name">{{ ev.name }}</div>
-    <div class="event-meta">
-      forecast {{ ev.forecast or "—" }} · prev {{ ev.previous or "—" }}
+<div class="brand-bar"></div>
+<main>
+  <header class="header">
+    <div class="logo-wrap">
+      <img src="file:///{{ logo_url }}" alt="qtradesedu" />
+      <span class="brand-name">qtrades<em>edu</em></span>
     </div>
+    <span class="meta">Calendar</span>
+  </header>
+
+  <span class="eyebrow">Event Hari Ini</span>
+  <h1 class="headline">{{ headline | safe }}</h1>
+  {% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+
+  <div class="event-grid">
+  {% for ev in events %}
+    <div class="event-card {{ ev.impact }}">
+      <div class="time-row">
+        <span class="currency-pill">{{ ev.currency }}</span>
+        <span class="time-text">{{ ev.time }} WIB</span>
+      </div>
+      <div class="name">{{ ev.name }}</div>
+      <div class="meta">
+        <span>F:<strong>{{ ev.forecast or "—" }}</strong></span>
+        <span>P:<strong>{{ ev.previous or "—" }}</strong></span>
+      </div>
+    </div>
+  {% endfor %}
   </div>
-{% endfor %}
-</div>
-<div class="handle">{{ handle }}</div>
+
+  <footer class="footer">
+    <span class="handle">{{ handle }}</span>
+    <span class="tagline">Watch volatility around release</span>
+  </footer>
+</main>
 </body>
 </html>

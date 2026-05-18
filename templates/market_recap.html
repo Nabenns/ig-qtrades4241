@@ -5,21 +5,36 @@
 <style>{{ base_css }}</style>
 </head>
 <body class="{{ orientation }}">
-<div class="brand-strip"></div>
-<span class="label-pill">Market Recap</span>
-<h1 class="headline">{{ headline }}</h1>
-{% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
-<div class="recap-grid">
-{% for r in recaps %}
-  <div class="recap-card">
-    <div class="recap-symbol">{{ r.symbol }}</div>
-    <div class="recap-change {{ 'up' if r.change_pct >= 0 else 'down' }}">
-      {{ "%+.2f"|format(r.change_pct) }}%
+<div class="brand-bar"></div>
+<main>
+  <header class="header">
+    <div class="logo-wrap">
+      <img src="file:///{{ logo_url }}" alt="qtradesedu" />
+      <span class="brand-name">qtrades<em>edu</em></span>
     </div>
-    <div class="recap-close">{{ r.close }}</div>
+    <span class="meta">Daily Recap</span>
+  </header>
+
+  <span class="eyebrow">Market Recap</span>
+  <h1 class="headline">{{ headline | safe }}</h1>
+  {% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+
+  <div class="recap-grid">
+  {% for r in recaps %}
+    <div class="recap-card">
+      <div class="symbol">{{ r.symbol }}</div>
+      <div class="change {{ 'up' if r.change_pct >= 0 else 'down' }}">
+        {{ "%+.2f"|format(r.change_pct) }}%
+      </div>
+      <div class="close">{{ r.close }}</div>
+    </div>
+  {% endfor %}
   </div>
-{% endfor %}
-</div>
-<div class="handle">{{ handle }}</div>
+
+  <footer class="footer">
+    <span class="handle">{{ handle }}</span>
+    <span class="tagline">Major pairs vs previous close</span>
+  </footer>
+</main>
 </body>
 </html>

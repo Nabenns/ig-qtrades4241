@@ -5,11 +5,25 @@
 <style>{{ base_css }}</style>
 </head>
 <body class="{{ orientation }}">
-<div class="brand-strip"></div>
-<span class="label-pill">{{ label | default("Forex News") }}</span>
-<h1 class="headline">{{ headline }}</h1>
-{% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
-<p class="summary">{{ summary }}</p>
-<div class="handle">{{ handle }}</div>
+<div class="brand-bar"></div>
+<main>
+  <header class="header">
+    <div class="logo-wrap">
+      <img src="file:///{{ logo_url }}" alt="qtradesedu" />
+      <span class="brand-name">qtrades<em>edu</em></span>
+    </div>
+    <span class="meta">{{ date_label | default("Macro Watch") }}</span>
+  </header>
+
+  <span class="eyebrow">{{ label | default("Forex News") }}</span>
+  <h1 class="headline">{{ headline | safe }}</h1>
+  {% if subheadline %}<p class="subhead">{{ subheadline }}</p>{% endif %}
+  {% if summary %}<div class="summary">{{ summary }}</div>{% endif %}
+
+  <footer class="footer">
+    <span class="handle">{{ handle }}</span>
+    <span class="tagline">Educational forex insights<br/>untuk trader Indonesia</span>
+  </footer>
+</main>
 </body>
 </html>
