@@ -64,6 +64,12 @@ def build_jobs_spec(cfg: AppConfig) -> list[dict[str, Any]]:
                 hour=sched.story_recap_hour, jitter=900, timezone=sched.timezone
             ),
         },
+        {
+            "id": "weekly_audit",
+            "trigger": CronTrigger(
+                day_of_week="sun", hour=22, jitter=600, timezone=sched.timezone
+            ),
+        },
     ]
 
 

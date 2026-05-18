@@ -281,6 +281,13 @@ async def run_long_running(*, config_path: Path) -> int:
             symbols=cfg.collector.symbols,
         )
 
+    async def audit_job() -> None:
+        from ig_qt.audit import audit_recent_posts, format_audit_report
+
+        flags = audit_recent_posts(engine, days=7)
+        report = format_audit_report(flags)
+        await notifier.send(report)
+
     handlers = {
         "collect_news_morning": collect_news,
         "collect_news_evening": collect_news,
@@ -290,6 +297,7 @@ async def run_long_running(*, config_path: Path) -> int:
         "publisher_loop": publisher_job,
         "story_event_reminder": story_event_job,
         "story_market_recap": story_recap_job,
+        "weekly_audit": audit_job,
     }
 
     scheduler = build_scheduler(cfg=cfg, jobs_db=cfg.paths.data_dir / "jobs.db")
