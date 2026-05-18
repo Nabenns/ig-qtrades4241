@@ -18,8 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg62-turbo zlib1g libpng16-16 libfreetype6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-RUN pip install --no-cache-dir uv==0.4.20
+# Install uv (modern, fast Python package manager)
+RUN pip install --no-cache-dir uv==0.11.14
 
 WORKDIR /app
 

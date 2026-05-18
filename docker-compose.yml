@@ -26,11 +26,14 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # Override LLM_BASE_URL so ig-qt talks to the router via docker network
+      LLM_BASE_URL: http://router:20128/v1
       IG_QT_DATA_DIR: /app/data
       TZ: Asia/Jakarta
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
+      - ./assets:/app/assets:ro
     ports:
       - "127.0.0.1:8080:8080"   # localhost-only health endpoint
     depends_on:
@@ -41,7 +44,7 @@ services:
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     logging:
       driver: json-file
       options:
