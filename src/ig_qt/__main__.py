@@ -6,7 +6,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-from ig_qt.app import run_check, run_collect_once
+from ig_qt.app import run_analyze_once, run_check, run_collect_once
 
 
 def main() -> int:
@@ -18,12 +18,15 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("check", help="Validate env + DB and exit")
     sub.add_parser("collect", help="Run collector once")
+    sub.add_parser("analyze", help="Run analyst once")
     args = parser.parse_args()
 
     if args.check or args.cmd == "check":
         return run_check(config_path=args.config)
     if args.cmd == "collect":
         return asyncio.run(run_collect_once(config_path=args.config))
+    if args.cmd == "analyze":
+        return asyncio.run(run_analyze_once(config_path=args.config))
     print("ig_qt: scheduler entry point not implemented yet (M5)")
     return 0
 

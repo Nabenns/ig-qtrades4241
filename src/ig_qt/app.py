@@ -1,6 +1,7 @@
 """Application bootstrap."""
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
@@ -58,3 +59,32 @@ async def run_collect_once(*, config_path: Path) -> int:
         result.failed_sources,
     )
     return 0 if not result.failed_sources else 1
+
+
+async def run_analyze_once(*, config_path: Path) -> int:
+    """One-shot analyst run for manual invocation / testing."""
+    from ig_qt.analyst.runner import AnalystRunner
+
+    cfg = load_config(config_path)
+    log_dir = cfg.paths.data_dir / "logs"
+    configure_logging(log_dir=log_dir, level="INFO", json_logs=True)
+    engine = build_engine(cfg.paths.data_dir / "ig_qt.db")
+    init_schema(engine)
+    provider = build_llm_provider(cfg.llm)
+    runner = AnalystRunner(
+        engine=engine,
+        provider=provider,
+        ranker_model=cfg.llm.ranker_model,
+        composer_model=cfg.llm.composer_model,
+        story_count=3,
+        confidence_threshold=0.6,
+    )
+    summary = await runner.run_once(today=datetime.now(UTC))
+    logger.info(
+        "analyze_done feed={} story={} evergreen={} rejected={}",
+        summary.feed_drafts,
+        summary.story_drafts,
+        summary.evergreen_used,
+        summary.rejected_low_confidence,
+    )
+    return 0 if (summary.feed_drafts + summary.story_drafts) > 0 else 2
