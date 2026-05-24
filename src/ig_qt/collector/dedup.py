@@ -7,8 +7,8 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ig_qt.collector.base import NormalizedEvent, NormalizedNews
-from ig_qt.models import Event, RawNews
+from ig_qt.collector.base import NormalizedEvent, NormalizedNews, NormalizedPrice
+from ig_qt.models import Event, PriceCache, RawNews
 
 
 def insert_news_dedup(session: Session, items: Sequence[NormalizedNews]) -> int:
@@ -77,3 +77,39 @@ def insert_events_dedup(session: Session, items: Sequence[NormalizedEvent]) -> i
         inserted += 1
     logger.info("insert_events_dedup inserted={} skipped={}", inserted, len(items) - inserted)
     return inserted
+
+
+def upsert_price_cache(session: Session, items: Sequence[NormalizedPrice]) -> int:
+    """Replace cached OHLC for each (symbol, timeframe) pair. Returns count written.
+
+    PriceCache rows are descriptive snapshots — old ones for the same symbol
+    are deleted before the new one is inserted. This keeps the table small.
+    Empty `ohlc` lists are skipped (no point caching nothing).
+    """
+    if not items:
+        return 0
+    written = 0
+    for p in items:
+        if not p.ohlc:
+            continue
+        # Delete previous cache rows for this symbol+timeframe
+        existing = list(
+            session.execute(
+                select(PriceCache).where(
+                    PriceCache.symbol == p.symbol, PriceCache.timeframe == p.timeframe
+                )
+            ).scalars()
+        )
+        for old in existing:
+            session.delete(old)
+        session.add(
+            PriceCache(
+                symbol=p.symbol,
+                timeframe=p.timeframe,
+                fetched_at=p.fetched_at,
+                ohlc_json=list(p.ohlc),
+            )
+        )
+        written += 1
+    logger.info("upsert_price_cache written={} skipped={}", written, len(items) - written)
+    return written

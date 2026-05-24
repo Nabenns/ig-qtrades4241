@@ -52,6 +52,11 @@ class YFinanceSource:
                 fetched_at=datetime.now(UTC),
                 ohlc=[],
             )
+        # Newer yfinance returns MultiIndex columns like ('Open', 'DX-Y.NYB').
+        # Flatten by dropping the ticker level so 'Open'/'Close' are plain strings.
+        if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
+            df = df.copy()
+            df.columns = df.columns.get_level_values(0)
         df = df.tail(limit)
         ohlc: list[dict[str, Any]] = []
         for ts, row in df.iterrows():

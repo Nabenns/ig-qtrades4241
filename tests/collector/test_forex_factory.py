@@ -1,24 +1,65 @@
-"""Tests for Forex Factory parser."""
+"""Tests for Forex Factory JSON-based parser."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from pathlib import Path
-
-from ig_qt.collector.forex_factory import parse_forex_factory_html
+from ig_qt.collector.forex_factory import _parse_event
 
 
-def test_parse_extracts_two_events() -> None:
-    fixture = Path(__file__).parent / "fixtures" / "ff_sample.html"
-    html = fixture.read_text(encoding="utf-8")
-    base_date = datetime(2026, 5, 17, tzinfo=UTC)
-    events = parse_forex_factory_html(html, fallback_date=base_date)
-    assert len(events) == 2
-    cpi = events[0]
-    assert cpi.currency == "USD"
-    assert cpi.impact == "high"
-    assert cpi.name == "CPI m/m"
-    assert cpi.forecast == "0.3%"
-    ecb = events[1]
-    assert ecb.currency == "EUR"
-    assert ecb.impact == "medium"
-    assert ecb.event_time.date() == base_date.date()
+def test_parse_high_impact_event() -> None:
+    raw = {
+        "title": "CPI m/m",
+        "country": "USD",
+        "date": "2026-05-25T08:30:00-04:00",
+        "impact": "High",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+    }
+    ev = _parse_event(raw)
+    assert ev is not None
+    assert ev.currency == "USD"
+    assert ev.impact == "high"
+    assert ev.name == "CPI m/m"
+    assert ev.forecast == "0.3%"
+    assert ev.previous == "0.2%"
+    # Timezone-aware datetime preserved through dateutil
+    assert ev.event_time.tzinfo is not None
+
+
+def test_parse_medium_impact_event() -> None:
+    raw = {
+        "title": "ECB Press Conference",
+        "country": "EUR",
+        "date": "2026-05-26T08:45:00-04:00",
+        "impact": "Medium",
+        "forecast": "",
+        "previous": "",
+    }
+    ev = _parse_event(raw)
+    assert ev is not None
+    assert ev.currency == "EUR"
+    assert ev.impact == "medium"
+    assert ev.forecast is None
+    assert ev.previous is None
+
+
+def test_parse_holiday_normalizes_to_low() -> None:
+    raw = {
+        "title": "Bank Holiday",
+        "country": "CHF",
+        "date": "2026-05-25T01:00:00-04:00",
+        "impact": "Holiday",
+        "forecast": "",
+        "previous": "",
+    }
+    ev = _parse_event(raw)
+    assert ev is not None
+    assert ev.impact == "low"
+
+
+def test_parse_returns_none_on_missing_title() -> None:
+    raw = {"title": "", "country": "USD", "date": "2026-05-25T08:30:00-04:00"}
+    assert _parse_event(raw) is None
+
+
+def test_parse_returns_none_on_bad_date() -> None:
+    raw = {"title": "Test", "country": "USD", "date": "not-a-date"}
+    assert _parse_event(raw) is None

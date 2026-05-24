@@ -15,18 +15,19 @@ from loguru import logger
 
 from ig_qt.collector.base import NormalizedNews
 
-# Default RSS sources for forex/finance news
+# Default RSS sources for forex/finance news.
+# Verified live as of 2026-05. Drop entries that return SSL/cert errors.
 DEFAULT_RSS_FEEDS: tuple[str, ...] = (
-    # ForexLive (primary, very fast updates)
+    # ForexLive — primary, very fast updates, forex-focused
     "https://www.forexlive.com/feed/news",
-    # Investing.com — forex news
+    # Investing.com — forex news (curated)
     "https://www.investing.com/rss/news_25.rss",
-    # DailyFX
-    "https://www.dailyfx.com/feeds/forex-market-news",
-    # FXStreet
-    "https://www.fxstreet.com/rss/news",
-    # Reuters business (forex/macro adjacent)
-    # NB: keep optional; some are flaky
+    # FinanceMagnates — forex/CFD industry news
+    "https://www.financemagnates.com/feed/",
+    # CNBC — broad market + macro coverage
+    "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+    # MarketWatch — top stories, macro adjacent
+    "https://www.marketwatch.com/rss/topstories",
 )
 
 
