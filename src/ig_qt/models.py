@@ -170,3 +170,21 @@ class EvergreenDraft(Base):
     used_count: Mapped[int] = mapped_column(Integer, default=0)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class AlertState(Base):
+    """Debouncing state for pipeline degradation alerts.
+
+    Each row tracks one alert "key" (e.g. 'collect:no_news', 'analyst:stale').
+    `consecutive_count` increments on each detection and resets when the
+    condition clears. `last_sent_at` lets us suppress duplicate notifications
+    within a cooldown window.
+    """
+
+    __tablename__ = "alert_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    consecutive_count: Mapped[int] = mapped_column(Integer, default=0)
+    first_detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

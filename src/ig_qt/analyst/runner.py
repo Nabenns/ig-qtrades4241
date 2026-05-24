@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import Engine, desc, select
+from sqlalchemy import Engine, desc, func, select
 from sqlalchemy.orm import Session
 
 from ig_qt.analyst.angle_generator import generate_angle
@@ -19,6 +19,11 @@ from ig_qt.db import session_scope
 from ig_qt.llm.base import LLMProvider
 from ig_qt.models import Event, EvergreenDraft, PostDraft, PostedTopic, PriceCache, RawNews
 
+# Stale data threshold: if the freshest news in DB is older than this many hours,
+# we mark the run as `stale_inputs` and trigger an alert (when notifier wired up).
+_STALE_NEWS_HOURS = 12
+_STALE_EVENTS_HOURS = 48
+
 
 @dataclass(frozen=True, slots=True)
 class AnalystSummary:
@@ -26,6 +31,9 @@ class AnalystSummary:
     story_drafts: int
     evergreen_used: bool
     rejected_low_confidence: int
+    stale_inputs: bool = False
+    freshest_news_age_hours: float | None = None
+    freshest_event_age_hours: float | None = None
 
 
 class AnalystRunner:
@@ -165,11 +173,30 @@ class AnalystRunner:
             )
         )
 
+    def _freshness_diagnostics(
+        self, session: Session, today: datetime
+    ) -> tuple[float | None, float | None]:
+        """Return (news_age_hours, event_age_hours) of the freshest row in DB.
+        None means table is empty.
+        """
+        latest_news = session.execute(select(func.max(RawNews.published_at))).scalar()
+        latest_event = session.execute(select(func.max(Event.event_time))).scalar()
+
+        def _age(ts: datetime | None) -> float | None:
+            if ts is None:
+                return None
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+            return (today - ts).total_seconds() / 3600.0
+
+        return _age(latest_news), _age(latest_event)
+
     async def run_once(self, *, today: datetime) -> AnalystSummary:
         since = today - timedelta(hours=24)
         until = today + timedelta(hours=24)
 
         with session_scope(self._engine) as s:
+            news_age_h, event_age_h = self._freshness_diagnostics(s, today)
             news = self._load_news(s, since)
             events = self._load_events(s, until)
             prices = self._load_prices(s)
@@ -179,9 +206,40 @@ class AnalystRunner:
             for e in events:
                 s.expunge(e)
 
+        # Stale-data detection: log a structured warning so ops layer can alert.
+        # We compare against thresholds independent of the 24h filter so dashboards
+        # see degradation early.
+        stale = False
+        if news_age_h is None:
+            logger.warning("analyst_data_stale reason=news_table_empty")
+            stale = True
+        elif news_age_h > _STALE_NEWS_HOURS:
+            logger.warning(
+                "analyst_data_stale reason=news_age age_hours={:.1f} threshold={}",
+                news_age_h,
+                _STALE_NEWS_HOURS,
+            )
+            stale = True
+        if event_age_h is not None and event_age_h > _STALE_EVENTS_HOURS:
+            logger.warning(
+                "analyst_data_stale reason=events_age age_hours={:.1f} threshold={}",
+                event_age_h,
+                _STALE_EVENTS_HOURS,
+            )
+            stale = True
+
         if not news and not events:
             logger.warning("analyst_no_inputs falling back to evergreen")
-            return await self._fallback_evergreen()
+            summary = await self._fallback_evergreen()
+            return AnalystSummary(
+                feed_drafts=summary.feed_drafts,
+                story_drafts=summary.story_drafts,
+                evergreen_used=summary.evergreen_used,
+                rejected_low_confidence=summary.rejected_low_confidence,
+                stale_inputs=True,
+                freshest_news_age_hours=news_age_h,
+                freshest_event_age_hours=event_age_h,
+            )
 
         rank: RankerOutput = await run_ranker(
             provider=self._provider,
@@ -193,7 +251,16 @@ class AnalystRunner:
             posted_topics=posted_topics,
         )
         if not rank.ranked:
-            return await self._fallback_evergreen()
+            fallback = await self._fallback_evergreen()
+            return AnalystSummary(
+                feed_drafts=fallback.feed_drafts,
+                story_drafts=fallback.story_drafts,
+                evergreen_used=fallback.evergreen_used,
+                rejected_low_confidence=fallback.rejected_low_confidence,
+                stale_inputs=stale,
+                freshest_news_age_hours=news_age_h,
+                freshest_event_age_hours=event_age_h,
+            )
 
         ranked_sorted = sorted(rank.ranked, key=lambda r: r.score, reverse=True)
         feed_pick = ranked_sorted[0]
@@ -257,6 +324,9 @@ class AnalystRunner:
             story_drafts=story_drafts,
             evergreen_used=evergreen_used,
             rejected_low_confidence=rejected,
+            stale_inputs=stale,
+            freshest_news_age_hours=news_age_h,
+            freshest_event_age_hours=event_age_h,
         )
 
     async def _fallback_evergreen(self) -> AnalystSummary:

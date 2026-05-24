@@ -43,6 +43,7 @@ def run_check(*, config_path: Path) -> int:
 async def run_collect_once(*, config_path: Path) -> int:
     """One-shot collector run for manual invocation / testing."""
     from ig_qt.collector.pipeline import build_pipeline_from_config
+    from ig_qt.pipeline_health import alert_collect_if_degraded
 
     cfg = load_config(config_path)
     log_dir = cfg.paths.data_dir / "logs"
@@ -58,12 +59,23 @@ async def run_collect_once(*, config_path: Path) -> int:
         result.events_inserted,
         result.failed_sources,
     )
+    notifier = build_notifier(
+        enabled=cfg.notifier.telegram_enabled,
+        bot_token=(
+            cfg.notifier.telegram_bot_token.get_secret_value()
+            if cfg.notifier.telegram_bot_token
+            else None
+        ),
+        chat_id=cfg.notifier.telegram_chat_id,
+    )
+    await alert_collect_if_degraded(notifier=notifier, result=result, engine=engine)
     return 0 if not result.failed_sources else 1
 
 
 async def run_analyze_once(*, config_path: Path) -> int:
     """One-shot analyst run for manual invocation / testing."""
     from ig_qt.analyst.runner import AnalystRunner
+    from ig_qt.pipeline_health import alert_analyst_if_degraded
 
     cfg = load_config(config_path)
     log_dir = cfg.paths.data_dir / "logs"
@@ -80,13 +92,36 @@ async def run_analyze_once(*, config_path: Path) -> int:
         confidence_threshold=0.6,
     )
     summary = await runner.run_once(today=datetime.now(UTC))
+    # Pretty-format ages: positive = past (stale risk), negative = upcoming events.
+    news_age_str = (
+        "n/a" if summary.freshest_news_age_hours is None
+        else f"{summary.freshest_news_age_hours:+.1f}h"
+    )
+    event_age_str = (
+        "n/a" if summary.freshest_event_age_hours is None
+        else f"{summary.freshest_event_age_hours:+.1f}h"
+    )
     logger.info(
-        "analyze_done feed={} story={} evergreen={} rejected={}",
+        "analyze_done feed={} story={} evergreen={} rejected={} stale={} "
+        "news_age={} event_age={}",
         summary.feed_drafts,
         summary.story_drafts,
         summary.evergreen_used,
         summary.rejected_low_confidence,
+        summary.stale_inputs,
+        news_age_str,
+        event_age_str,
     )
+    notifier = build_notifier(
+        enabled=cfg.notifier.telegram_enabled,
+        bot_token=(
+            cfg.notifier.telegram_bot_token.get_secret_value()
+            if cfg.notifier.telegram_bot_token
+            else None
+        ),
+        chat_id=cfg.notifier.telegram_chat_id,
+    )
+    await alert_analyst_if_degraded(notifier=notifier, summary=summary, engine=engine)
     return 0 if (summary.feed_drafts + summary.story_drafts) > 0 else 2
 
 
@@ -296,14 +331,22 @@ async def run_long_running(*, config_path: Path) -> int:
 
     pipeline = build_pipeline_from_config(engine, cfg)
 
+    from ig_qt.pipeline_health import (
+        alert_analyst_if_degraded,
+        alert_collect_if_degraded,
+    )
+
     async def collect_news() -> None:
-        await pipeline.run_once()
+        result = await pipeline.run_once()
+        await alert_collect_if_degraded(notifier=notifier, result=result, engine=engine)
 
     async def collect_calendar() -> None:
-        await pipeline.run_once()
+        result = await pipeline.run_once()
+        await alert_collect_if_degraded(notifier=notifier, result=result, engine=engine)
 
     async def analyst_job() -> None:
-        await analyst.run_once(today=datetime.now(UTC))
+        summary = await analyst.run_once(today=datetime.now(UTC))
+        await alert_analyst_if_degraded(notifier=notifier, summary=summary, engine=engine)
 
     async def composer_job() -> None:
         await composer.run_once()
@@ -342,6 +385,14 @@ async def run_long_running(*, config_path: Path) -> int:
 
         cleanup_old_assets(engine, posts_dir=cfg.paths.data_dir / "posts", age_days=30)
 
+    async def metrics_job() -> None:
+        from ig_qt.caption_variability import analyze_variability, format_variability_report
+        from ig_qt.metrics import render_metrics_text
+
+        report = render_metrics_text(engine, days=7)
+        var_report = format_variability_report(analyze_variability(engine, days=7))
+        await notifier.send(report + "\n\n" + var_report)
+
     reviewer = build_reviewer(
         enabled=cfg.notifier.telegram_enabled,
         bot_token=(
@@ -378,6 +429,7 @@ async def run_long_running(*, config_path: Path) -> int:
         "review_send_loop": review_send_job,
         "review_poll_loop": review_poll_job,
         "weekly_audit": audit_job,
+        "weekly_metrics": metrics_job,
         "weekly_cleanup": cleanup_job,
     }
 

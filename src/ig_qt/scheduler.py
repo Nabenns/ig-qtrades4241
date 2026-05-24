@@ -73,6 +73,12 @@ def build_jobs_spec(cfg: AppConfig) -> list[dict[str, Any]]:
             ),
         },
         {
+            "id": "weekly_metrics",
+            "trigger": CronTrigger(
+                day_of_week="mon", hour=8, jitter=300, timezone=sched.timezone
+            ),
+        },
+        {
             "id": "weekly_cleanup",
             "trigger": CronTrigger(
                 day_of_week="sun", hour=23, jitter=300, timezone=sched.timezone
