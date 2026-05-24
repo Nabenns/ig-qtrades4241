@@ -107,6 +107,9 @@ class TelegramReviewer:
                     {"text": "📋 Copy Caption", "callback_data": f"caption:{post_id}"},
                     {"text": "🔄 Regen Image", "callback_data": f"regen:{post_id}"},
                 ],
+                [
+                    {"text": "✏️ Edit Caption", "callback_data": f"edit:{post_id}"},
+                ],
             ]
         }
 
@@ -175,7 +178,10 @@ class TelegramReviewer:
         """Long-poll Telegram for new updates. Returns list of update objects."""
         try:
             payload = await self._post(
-                "getUpdates", offset=offset, timeout=20, allowed_updates=["callback_query"]
+                "getUpdates",
+                offset=offset,
+                timeout=20,
+                allowed_updates=["callback_query", "message"],
             )
         except Exception as exc:
             logger.debug("telegram_getupdates_failed err={}", exc)
@@ -276,6 +282,18 @@ async def poll_review_callbacks(
         update_id = int(upd.get("update_id", 0))
         new_offset = max(new_offset, update_id)
 
+        # Edit-caption reply path: a normal Telegram `message` reply to a
+        # prior "EDIT POST #N" prompt. We process it before callback_query
+        # because it's not a button click.
+        msg = upd.get("message")
+        if msg and not upd.get("callback_query"):
+            handled = await _maybe_handle_edit_reply(
+                engine=engine, reviewer=reviewer, msg=msg
+            )
+            if handled:
+                processed += 1
+            continue
+
         cq = upd.get("callback_query")
         if not cq:
             continue
@@ -341,6 +359,123 @@ async def _send_caption_only(
         remaining = remaining[3900:]
 
 
+# Marker we embed in the edit-prompt message so the poller can identify
+# replies that target a specific post. Looks ugly intentionally to avoid
+# accidental matches on real captions.
+_EDIT_PROMPT_MARKER = "✏️ EDIT POST #"
+
+
+async def _send_edit_prompt(
+    *,
+    reviewer: TelegramReviewer,
+    post_id: int,
+    chat_id: str,
+) -> None:
+    """Send a prompt asking the user to reply with the new caption.
+
+    Uses Telegram's `force_reply` so the mobile client opens a reply box
+    automatically. The poller scans incoming messages for replies whose
+    quoted text contains the EDIT marker.
+    """
+    text = (
+        f"{_EDIT_PROMPT_MARKER}{post_id}\n\n"
+        "Balas pesan ini dengan caption baru. "
+        "Hashtag + disclaimer bawaan akan tetap dipertahankan otomatis."
+    )
+    try:
+        await reviewer._post(
+            "sendMessage",
+            chat_id=chat_id,
+            text=text,
+            reply_markup={"force_reply": True, "selective": True},
+        )
+    except Exception as exc:
+        logger.warning("edit_prompt_send_failed err={}", exc)
+
+
+async def _maybe_handle_edit_reply(
+    *,
+    engine: Engine,
+    reviewer: TelegramReviewer,
+    msg: dict[str, Any],
+) -> bool:
+    """If `msg` is a reply to an edit prompt, apply the new caption.
+
+    Returns True when handled (regardless of success), False otherwise so the
+    poller knows whether to attribute the update to a processed action.
+    """
+    reply_to = msg.get("reply_to_message") or {}
+    reply_text = str(reply_to.get("text") or "")
+    if _EDIT_PROMPT_MARKER not in reply_text:
+        return False
+
+    # Extract post_id from the marker line: "✏️ EDIT POST #42"
+    try:
+        first_line = reply_text.splitlines()[0]
+        post_id = int(first_line.rsplit("#", 1)[1].strip())
+    except (IndexError, ValueError):
+        logger.warning("edit_reply_marker_unparseable text={!r}", reply_text[:200])
+        return True
+
+    new_caption = str(msg.get("text") or "").strip()
+    if not new_caption:
+        return True
+
+    chat = msg.get("chat") or {}
+    chat_id = str(chat.get("id") or "")
+    from_user = msg.get("from") or {}
+    username = from_user.get("username") or from_user.get("id", "?")
+
+    # Apply the new caption. We re-merge dynamic + brand hashtags so the user
+    # only has to focus on body text.
+    with session_scope(engine) as s:
+        post = s.execute(select(Post).where(Post.id == post_id)).scalar_one_or_none()
+        if post is None:
+            logger.warning("edit_reply_post_missing post_id={}", post_id)
+            return True
+        # Preserve trailing hashtags + disclaimer if user only sent body text.
+        # Heuristic: append hashtag block (and disclaimer line) from the old
+        # caption when the new caption doesn't already contain '#'.
+        merged = _merge_caption_with_existing_hashtags(
+            new_body=new_caption, old_caption=post.caption_final or ""
+        )
+        post.caption_final = merged
+
+    # Acknowledge by sending a confirmation message.
+    try:
+        await reviewer._post(
+            "sendMessage",
+            chat_id=chat_id,
+            text=(
+                f"✅ Caption updated for post #{post_id} by @{username}.\n"
+                f"New length: {len(merged)} chars."
+            ),
+        )
+    except Exception as exc:
+        logger.warning("edit_reply_ack_failed err={}", exc)
+
+    logger.info("review_edit_caption post_id={} by={} chars={}", post_id, username, len(merged))
+    return True
+
+
+def _merge_caption_with_existing_hashtags(*, new_body: str, old_caption: str) -> str:
+    """Reattach the hashtag + disclaimer block from `old_caption` if `new_body`
+    doesn't already include hashtags. Keeps brand consistency on quick edits.
+    """
+    if "#" in new_body:
+        return new_body
+    # Split old caption at first '#': everything before it is body, after is tail.
+    if "#" not in old_caption:
+        return new_body
+    tail_idx = old_caption.find("#")
+    # Walk back to the start of the line containing the first hashtag.
+    line_start = old_caption.rfind("\n", 0, tail_idx)
+    if line_start == -1:
+        line_start = 0
+    tail = old_caption[line_start:].lstrip("\n")
+    return new_body.rstrip() + "\n\n" + tail
+
+
 async def _handle_decision(
     *,
     engine: Engine,
@@ -383,6 +518,14 @@ async def _handle_decision(
             engine=engine, reviewer=reviewer, post_id=post_id, chat_id=chat_id
         )
         return "caption sent"
+    elif action == "edit":
+        # Prompt user to reply with replacement caption.
+        # The reply gets picked up by poll_review_callbacks which detects
+        # "EDIT POST #<id>" markers in the prompt message text.
+        await _send_edit_prompt(
+            reviewer=reviewer, post_id=post_id, chat_id=chat_id
+        )
+        return "edit prompt sent"
     else:
         return "unknown action"
 

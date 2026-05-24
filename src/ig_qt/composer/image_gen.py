@@ -25,10 +25,65 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 # reliably and renders garbled words on signs, banners, etc.
 _STYLE_SUFFIX = (
     ", cinematic lighting, photorealistic, dramatic atmosphere, dark moody,"
-    " 4k high quality."
-    " ABSOLUTELY NO TEXT, NO LETTERS, NO WORDS, NO WATERMARK, NO LOGO,"
-    " NO CAPTIONS, NO SIGNS WITH TEXT, NO TYPOGRAPHY"
+    " 4k high quality, abstract symbolic composition, no readable text,"
+    " plain unmarked surfaces, blank facades, no signage, no banners,"
+    " no billboards, no street signs, no posters, no documents, no screens,"
+    " no books, no labels, no logos, no watermarks"
 )
+
+# Substrings that historically cause Flux to render garbled text on signs,
+# building facades, banners, etc. We append a "no signage" reminder when any
+# of these appear in the user prompt.
+_TEXT_PRONE_TOKENS: tuple[str, ...] = (
+    "facade",
+    "facades",
+    "building",
+    "buildings",
+    "skyline",
+    "office",
+    "office tower",
+    "shop",
+    "store",
+    "storefront",
+    "billboard",
+    "banner",
+    "newspaper",
+    "newspapers",
+    "headline",
+    "magazine",
+    "poster",
+    "screen",
+    "screens",
+    "monitor",
+    "tv",
+    "billboard",
+    "ticker",
+    "exchange",
+    "chart",
+    "infographic",
+    "document",
+    "letter",
+    "envelope",
+    "label",
+    "logo",
+    "sign",
+    "signage",
+)
+
+
+def _sanitize_text_prone_prompt(prompt: str) -> str:
+    """If the prompt contains tokens that often induce Flux to render garbled text
+    (building facades, billboards, newspapers, screens), prepend an extra
+    "no readable text" reminder. Cheaper than retry loops.
+    """
+    lowered = prompt.lower()
+    if any(tok in lowered for tok in _TEXT_PRONE_TOKENS):
+        return (
+            "abstract symbolic interpretation, no readable text or letters anywhere, "
+            "blank surfaces, "
+            + prompt
+        )
+    return prompt
 
 
 class ImageGenError(Exception):
@@ -105,7 +160,7 @@ class Router9ImageGen:
             return data
 
     async def generate(self, *, prompt: str, out_path: Path) -> Path:
-        full_prompt = (prompt.strip() + _STYLE_SUFFIX)[:2000]
+        full_prompt = (_sanitize_text_prone_prompt(prompt.strip()) + _STYLE_SUFFIX)[:2000]
         payload: dict[str, Any] = {
             "model": self._model,
             "prompt": full_prompt,
@@ -196,7 +251,7 @@ class CloudflareImageGen:
             return data
 
     async def generate(self, *, prompt: str, out_path: Path) -> Path:
-        full_prompt = prompt.strip() + _STYLE_SUFFIX
+        full_prompt = _sanitize_text_prone_prompt(prompt.strip()) + _STYLE_SUFFIX
         payload: dict[str, Any] = {
             "prompt": full_prompt[:2000],
             "steps": self._steps,
